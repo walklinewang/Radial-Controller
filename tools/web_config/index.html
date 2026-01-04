@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radial Controller Web Config</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Radial Controller Web Config</h1>
+        </header>
+
+        <!-- 浏览器支持提示 -->
+        <div id="browser-support-alert" class="browser-support-alert" style="display: none;">
+            <h3>浏览器不支持Web Serial API</h3>
+            <div class="alert-content">
+                <p>请使用以下支持Web Serial API的浏览器：</p>
+                <ul>
+                    <li>Chrome 89+ (桌面版)</li>
+                    <li>Edge 89+ (桌面版)</li>
+                    <li>Opera 75+ (桌面版)</li>
+                </ul>
+                <div class="notes">
+                    <h4>注意事项：</h4>
+                    <ul>
+                        <li>必须使用桌面版浏览器，移动浏览器不支持</li>
+                        <li>必须通过HTTPS或localhost访问</li>
+                        <li>需要在浏览器设置中启用Web Serial API</li>
+                    </ul>
+                </div>
+                <div id="browser-info" class="browser-info"></div>
+            </div>
+        </div>
+
+        <!-- 自定义弹窗 -->
+        <div id="custom-alert" class="custom-alert" style="display: none;">
+            <div class="custom-alert-overlay"></div>
+            <div class="custom-alert-content">
+                <h3 id="alert-title" class="alert-title">提示</h3>
+                <p id="alert-message" class="alert-message"></p>
+                <div class="alert-buttons">
+                    <button id="alert-ok" class="primary-btn">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主布局容器 -->
+        <div class="main-layout">
+            <!-- 连接状态区域 -->
+            <section class="connection-section">
+                <div class="connection-status">
+                    <div class="status-indicator">
+                        <div id="connection-status-dot" class="status-dot"></div>
+                        <span id="connection-status-text">未连接</span>
+                    </div>
+                    <button id="connect-toggle-btn" class="primary-btn">连接</button>
+                </div>
+            </section>
+
+            <!-- 受保护区域容器 -->
+            <div id="protected-content" class="protected-content">
+                <!-- 配置参数区域 -->
+                <section class="config-section">
+                    <h2>参数配置</h2>
+                    <div id="config-container" class="config-container">
+                        <!-- 参数配置项将通过JavaScript动态生成 -->
+                    </div>
+                </section>
+
+                <!-- 版本信息区域 -->
+                <section class="version-section">
+                    <h2>版本信息</h2>
+                    <div class="version-info">
+                        <div class="version-item">
+                            <label>固件版本:</label>
+                            <span id="firmware-version" class="version-value">-</span>
+                        </div>
+                        <div class="version-item">
+                            <label>工具版本:</label>
+                            <span id="tool-version" class="version-value">1.0.0</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 功能按钮区域 -->
+                <section class="function-section">
+                    <h2>功能控制</h2>
+                    <div class="function-buttons">
+                        <button id="reset-settings-btn" class="secondary-btn">重置设置</button>
+                        <button id="reload-settings-btn" class="secondary-btn">重新加载</button>
+                        <button id="save-settings-btn" class="primary-btn">保存设置</button>
+                    </div>
+                </section>
+
+                <!-- 连接状态遮罩层 -->
+                <div id="connection-overlay" class="connection-overlay" style="display: none;">
+                    <div class="overlay-content">
+                        <div class="overlay-icon">🔌</div>
+                        <h3>请先连接设备</h3>
+                        <p>连接设备后才能进行参数配置</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
