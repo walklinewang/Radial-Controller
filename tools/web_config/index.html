@@ -57,42 +57,36 @@
                         <div id="connection-status-dot" class="status-dot"></div>
                         <span id="connection-status-text">未连接</span>
                     </div>
-                    <button id="connect-toggle-btn" class="primary-btn">连接</button>
+                    <button id="connect-toggle-btn" class="primary-btn">连接设备</button>
                 </div>
             </section>
 
             <!-- 受保护区域容器 -->
             <div id="protected-content" class="protected-content">
-                <!-- 配置参数区域 -->
-                <section class="config-section">
-                    <h2>参数配置</h2>
-                    <div id="config-container" class="config-container">
-                        <!-- 参数配置项将通过JavaScript动态生成 -->
-                    </div>
-                </section>
-
                 <!-- 版本信息区域 -->
-                <section class="version-section">
+                <section class="version-section" style="margin-bottom: 0;">
                     <h2>版本信息</h2>
                     <div class="version-info">
                         <div class="version-item">
                             <label>固件版本:</label>
                             <span id="firmware-version" class="version-value">-</span>
                         </div>
-                        <div class="version-item">
-                            <label>工具版本:</label>
-                            <span id="tool-version" class="version-value">1.0.0</span>
-                        </div>
                     </div>
                 </section>
 
-                <!-- 功能按钮区域 -->
-                <section class="function-section">
-                    <h2>功能控制</h2>
+                <!-- 配置参数区域 -->
+                <section class="config-section">
+                    <h2>参数配置</h2>
+                    <div id="config-container" class="config-container">
+                        <!-- 参数配置项将通过JavaScript动态生成 -->
+                    </div>
+                    <hr style="margin: 20px 0; border: none; border-top: 2px solid #e2e8f0;">
                     <div class="function-buttons">
+                        <div class="left-buttons">
+                            <button id="reload-settings-btn" class="secondary-btn">加载设置</button>
+                            <button id="save-settings-btn" class="primary-btn">保存设置</button>
+                        </div>
                         <button id="reset-settings-btn" class="secondary-btn">重置设置</button>
-                        <button id="reload-settings-btn" class="secondary-btn">重新加载</button>
-                        <button id="save-settings-btn" class="primary-btn">保存设置</button>
                     </div>
                 </section>
 
@@ -106,8 +100,6 @@
                 </div>
             </div>
         </div>
-
-
     </div>
 
     <script src="script.js"></script>

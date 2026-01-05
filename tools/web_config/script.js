@@ -1,5 +1,20 @@
 class SerialAssistant {
     constructor() {
+        // 命令常量
+        this.COMMANDS = {
+            CONFIG_MODE_ENABLE: 'config_mode_enabled',
+            CONFIG_MODE_DISABLE: 'config_mode_disabled',
+            GET_CONFIG: 'get_config',
+            SHOW_MENU: 'show_menu',
+            RESET_CONFIG: 'reset_config',
+            SET_PREFIX: 'set_'
+        };
+
+        // 响应常量
+        this.RESPONSES = {
+            CONFIG_MODE_ENABLED_SUCCESS: 'config_mode_enabled_success'
+        };
+
         this.port = null;
         this.reader = null;
         this.writer = null;
@@ -228,18 +243,18 @@ class SerialAssistant {
 
             await port.open(config);
             this.port = port;
-            this.isConnected = true;
+            
+            // this.showStatus(`串口连接成功 (${config.baudRate} bps, ${config.dataBits}N${config.stopBits}, ${config.parity})`, 'success');
 
-            this.updateUIState();
-            this.showStatus(`串口连接成功 (${config.baudRate} bps, ${config.dataBits}N${config.stopBits}, ${config.parity})`, 'success');
+            // 开始接收数据
+            this.startReading();
 
             // 连接成功后发送命令，将is_config_mode设置为true
             await this.enableConfigMode();
 
+            this.updateUIState();
+
             this.connectionCheckInterval = setInterval(() => this.checkConnectionStatus(), 5000);
-        
-        // 开始接收数据
-        this.startReading();
         } catch (error) {
             if (error.name === 'NotFoundError') {
                 this.showStatus('未选择串口，请重新连接并选择有效串口', 'warning');
@@ -291,11 +306,13 @@ class SerialAssistant {
         this.receiveBuffer = lines.pop(); // 保留最后一行（可能不完整）
         
         for (const line of lines) {
-            if (!line.trim()) continue;
+            // 去掉回车符和空白字符
+            const trimmedLine = line.replace(/\r/g, '').trim();
+            if (!trimmedLine) continue;
             
             // 检查是否是配置数据
-            if (line.includes('=')) {
-                const [key, value] = line.split('=');
+            if (trimmedLine.includes('=')) {
+                const [key, value] = trimmedLine.split('=');
                 const paramKey = key.trim();
                 const paramValue = value.trim();
                 
@@ -309,7 +326,7 @@ class SerialAssistant {
             
             // 通知等待数据的promise
             if (this.dataReceivedResolver) {
-                this.dataReceivedResolver(line);
+                this.dataReceivedResolver(trimmedLine);
             }
         }
     }
@@ -385,10 +402,20 @@ class SerialAssistant {
     async enableConfigMode() {
         try {
             const writer = await this.getWriter();
-            const command = 'config_mode_enabled\n';
+            const command = this.COMMANDS.CONFIG_MODE_ENABLE + '\n';
             const sendBuffer = new TextEncoder().encode(command);
             await writer.write(sendBuffer);
-            this.showStatus('已启用配置模式', 'success');
+            this.showStatus('正在启用配置模式...', 'info');
+
+            const response = await this.waitForData(1000);
+
+            if (response === this.RESPONSES.CONFIG_MODE_ENABLED_SUCCESS) {
+                this.showStatus('配置模式已成功启用', 'success');
+                // 显示设置覆盖层
+                this.isConnected = true;
+            } else {
+                throw new Error(`意外响应: ${response}`);
+            }
         } catch (error) {
             this.writer = this.releaseResource(this.writer);
             this.showStatus(`启用配置模式失败: ${error.message}`, 'error');
@@ -406,7 +433,7 @@ class SerialAssistant {
             const writer = await this.getWriter();
             
             // 发送重置配置命令
-            const resetCommand = 'reset_config\n';
+            const resetCommand = this.COMMANDS.RESET_CONFIG + '\n';
             const resetBuffer = new TextEncoder().encode(resetCommand);
             await writer.write(resetBuffer);
             
@@ -445,7 +472,7 @@ class SerialAssistant {
             const writer = await this.getWriter();
             
             // 发送读取配置命令
-            const getConfigCommand = 'get_config\n';
+            const getConfigCommand = this.COMMANDS.GET_CONFIG + '\n';
             const getConfigBuffer = new TextEncoder().encode(getConfigCommand);
             await writer.write(getConfigBuffer);
             
@@ -469,7 +496,7 @@ class SerialAssistant {
 
             // 发送每个配置参数
             for (const [key, param] of Object.entries(this.configParams)) {
-                const command = `set_${key}=${param.value}\n`;
+                const command = `${this.COMMANDS.SET_PREFIX}${key}=${param.value}\n`;
                 const sendBuffer = new TextEncoder().encode(command);
                 await writer.write(sendBuffer);
                 // 等待一小段时间确保命令被正确处理
@@ -488,22 +515,9 @@ class SerialAssistant {
         }
     }
 
-    async setSignal(signalType, value, signalName, silent = false) {
-        if (this.port && this.isConnected) {
-            try {
-                await this.port.setSignals({ [signalType]: value });
-                if (!silent) {
-                    this.showStatus(`${signalName}信号已${value ? '置高' : '置低'}`, 'success');
-                }
-            } catch (error) {
-                this.showStatus(`设置${signalName}失败: ${error.message}`, 'error');
-            }
-        }
-    }
-
     updateUIState() {
         const isConnected = this.isConnected;
-        this.connectToggleBtn.textContent = isConnected ? '断开' : '连接';
+        this.connectToggleBtn.textContent = isConnected ? '断开设备' : '连接设备';
         this.connectToggleBtn.className = isConnected ? 'secondary-btn' : 'primary-btn';
 
         // 更新连接状态指示灯
