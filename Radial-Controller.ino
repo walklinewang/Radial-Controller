@@ -70,8 +70,8 @@ void loop() {
 
     if (received) {
         // 处理接收到的命令
-        DEBUG_PRINT("Command: ");
-        DEBUG_PRINTLN(receive_str);
+        // DEBUG_PRINT("Command: ");
+        // DEBUG_PRINTLN(receive_str);
 
         processCommand(receive_str);
 
@@ -128,7 +128,6 @@ void loop() {
     }
 }
 
-#if DEBUG
 /**
  * @brief 处理CDC接收到的命令
  * @param command 接收到的命令字符串
@@ -136,6 +135,7 @@ void loop() {
 void processCommand(char *command) {
     if (strcmp(command, "config_mode_enabled") == 0) {
         is_config_mode = true;
+        USBSerial_println("config_mode_enabled_success");;
         DEBUG_PRINTLN("Config mode enabled");
     } else if (strcmp(command, "config_mode_disabled") == 0) {
         is_config_mode = false;
@@ -250,4 +250,3 @@ void processCommand(char *command) {
         WS2812_SetBrightness(EEPROM_GetBrightness());
     }
 }
-#endif
