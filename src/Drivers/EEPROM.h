@@ -45,8 +45,14 @@ typedef struct {
     int16_t rotate_cw;  // 顺时针旋转角度
     int16_t rotate_ccw; // 逆时针旋转角度
 
-    uint8_t reserved[8]; // 预留空间，用于未来扩展
-} config_t;              /* 共 20 字节*/
+    uint8_t reserved[20]; // 预留空间，用于未来扩展
+} config_t;               /* 共 32 字节*/
+
+/**
+ * @brief 获取完整的配置结构体数据
+ * @return 配置结构体指针
+ */
+config_t *EEPROM_GetConfigData(void);
 
 /**
  * @brief 从 EEPROM 读取配置参数

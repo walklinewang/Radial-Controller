@@ -9,6 +9,12 @@
 static config_t config;
 
 /**
+ * @brief 获取完整的配置结构体数据
+ * @return 配置结构体指针
+ */
+config_t *EEPROM_GetConfigData(void) { return &config; }
+
+/**
  * @brief 从 EEPROM 读取配置参数
  * @return 操作状态
  */
@@ -20,7 +26,17 @@ eeprom_status_t EEPROM_LoadConfig() {
     }
 
     // 验证配置数据的有效性
-    return EEPROM_Validate();
+    if (EEPROM_Validate() != EEPROM_STATUS_OK) {
+        // 配置数据无效，重置为默认值
+        if (EEPROM_Reset() == EEPROM_STATUS_OK) {
+            // 将默认配置保存到EEPROM
+            return EEPROM_SaveConfig();
+        }
+
+        return EEPROM_STATUS_ERROR;
+    }
+
+    return EEPROM_STATUS_OK;
 }
 
 /**
