@@ -5,14 +5,20 @@ class SerialAssistant {
             CONFIG_MODE_ENABLE: 'config_mode_enabled',
             CONFIG_MODE_DISABLE: 'config_mode_disabled',
             GET_CONFIG: 'get_config',
-            SHOW_MENU: 'show_menu',
             RESET_CONFIG: 'reset_config',
-            SET_PREFIX: 'set_'
+            SET_PREFIX: 'set_',
+
+            SHOW_MENU: 'show_menu',
+            CLICK: 'click',
+            ROTATE_LEFT: 'rotate_left',
+            ROTATE_RIGHT: 'rotate_right',
         };
 
         // 响应常量
         this.RESPONSES = {
-            CONFIG_MODE_ENABLED_SUCCESS: 'config_mode_enabled_success'
+            CONFIG_MODE_ENABLED: 'config_mode_enabled_success',
+            CONFIG_MODE_DISABLED: 'config_mode_disabled_success',
+            RESET_CONFIG: 'reset_config_success',
         };
 
         this.port = null;
@@ -26,13 +32,13 @@ class SerialAssistant {
 
         // 配置参数
         this.configParams = {
-            led_count: { label: 'LED灯珠数量', type: 'number', min: 1, max: 255, value: 12 },
+            led_count: { label: 'LED灯珠数量', type: 'number', min: 1, max: 10, value: 4 },
             color_order: { label: 'LED颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB' }, { value: 1, label: 'RGB' }], value: 0 },
-            brightness: { label: '亮度等级', type: 'number', min: 0, max: 4, value: 2 },
-            effect_mode: { label: 'LED灯效模式', type: 'number', min: 0, max: 255, value: 0 },
-            effect_tick: { label: 'LED灯效循环周期(ms)', type: 'number', min: 100, max: 10000, value: 1000 },
-            rotate_cw: { label: '顺时针旋转角度', type: 'number', min: -360, max: 360, value: 0 },
-            rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: 360, value: 0 }
+            brightness: { label: '亮度等级', type: 'number', min: 0, max: 4, value: 1 },
+            effect_mode: { label: 'LED灯效模式', type: 'number', min: 0, max: 1, value: 0 },
+            effect_tick: { label: 'LED灯效循环周期(ms)', type: 'number', min: 20, max: 500, value: 50 },
+            rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
+            rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 }
         };
 
         this.initElements();
@@ -72,31 +78,6 @@ class SerialAssistant {
             }
         }
         return null;
-    }
-
-    addLineEnding(data, endingType) {
-        const endings = { 'lf': '\n', 'cr': '\r', 'crlf': '\r\n', 'none': '' };
-        const targetEnding = endings[endingType] || '';
-
-        if (!data || !targetEnding) {
-            return data + targetEnding;
-        }
-
-        const hasCRLF = data.includes('\r\n');
-        const hasLF = data.includes('\n') && !hasCRLF;
-        const hasCR = data.includes('\r') && !hasCRLF;
-
-        let processedData = data + (data.endsWith(targetEnding) ? '' : targetEnding);
-
-        if (hasCRLF && targetEnding !== '\r\n') {
-            processedData = processedData.replace(/\r\n/g, targetEnding);
-        } else if (hasLF && targetEnding !== '\n') {
-            processedData = processedData.replace(/\n/g, targetEnding);
-        } else if (hasCR && targetEnding !== '\r') {
-            processedData = processedData.replace(/\r/g, targetEnding);
-        }
-
-        return processedData;
     }
 
     getSerialConfig() {
@@ -244,13 +225,15 @@ class SerialAssistant {
             await port.open(config);
             this.port = port;
             
-            // this.showStatus(`串口连接成功 (${config.baudRate} bps, ${config.dataBits}N${config.stopBits}, ${config.parity})`, 'success');
+            this.showStatus(`串口连接成功 (${config.baudRate} bps, ${config.dataBits}N${config.stopBits}, ${config.parity})`, 'success');
 
             // 开始接收数据
             this.startReading();
 
-            // 连接成功后发送命令，将is_config_mode设置为true
             await this.enableConfigMode();
+
+            // 加载配置数据
+            await this.reloadSettings();
 
             this.updateUIState();
 
@@ -275,14 +258,16 @@ class SerialAssistant {
         }
         
         try {
-            const decoder = new TextDecoderStream();
-            this.reader = this.port.readable.pipeThrough(decoder).getReader();
+            // 使用TextDecoderStream将二进制数据转换为文本
+            const textDecoder = new TextDecoderStream();
+            this.reader = this.port.readable.pipeThrough(textDecoder).getReader();
             
             while (true) {
                 const { value, done } = await this.reader.read();
                 if (done) break;
                 
                 if (value) {
+                    // 将文本数据添加到缓冲区
                     this.receiveBuffer += value;
                     this.processReceivedData();
                 }
@@ -302,33 +287,107 @@ class SerialAssistant {
      */
     processReceivedData() {
         // 分割接收到的数据，按行处理
-        const lines = this.receiveBuffer.split('\n');
+        const lines = this.receiveBuffer.split('\r\n');
         this.receiveBuffer = lines.pop(); // 保留最后一行（可能不完整）
         
         for (const line of lines) {
-            // 去掉回车符和空白字符
-            const trimmedLine = line.replace(/\r/g, '').trim();
-            if (!trimmedLine) continue;
+            let processedLine;
             
-            // 检查是否是配置数据
-            if (trimmedLine.includes('=')) {
-                const [key, value] = trimmedLine.split('=');
-                const paramKey = key.trim();
-                const paramValue = value.trim();
-                
-                // 更新配置参数
-                if (this.configParams[paramKey]) {
-                    this.configParams[paramKey].value = paramKey === 'color_order' ? parseInt(paramValue) : parseInt(paramValue);
-                    // 更新UI控件
-                    this.updateConfigControl(paramKey, parseInt(paramValue));
+            if (line) {
+                // 检查是否是配置数据
+                if (line.includes('=')) {
+                    if (line.startsWith('config=')) {
+                        // 处理二进制配置数据
+                        // 不要trim()，否则会丢失二进制数据
+                        processedLine = line;
+                        this.parseConfigBinary(processedLine);
+                    } else {
+                        // 处理普通key=value格式数据
+                        processedLine = line.trim();
+                        
+                        const [key, value] = processedLine.split('=');
+                        const paramKey = key.trim();
+                        const paramValue = value.trim();
+                        
+                        // 更新配置参数
+                        if (this.configParams[paramKey]) {
+                            this.configParams[paramKey].value = parseInt(paramValue);
+                            // 更新UI控件
+                            this.updateConfigControl(paramKey, parseInt(paramValue));
+                        }
+                    }
+                } else {
+                    // 处理不包含=号的响应（如命令确认信息）
+                    processedLine = line.trim();
                 }
             }
             
             // 通知等待数据的promise
-            if (this.dataReceivedResolver) {
-                this.dataReceivedResolver(trimmedLine);
+            if (this.dataReceivedResolver && processedLine) {
+                this.dataReceivedResolver(processedLine);
             }
         }
+    }
+    
+    /**
+     * 解析二进制配置数据
+     * @param {string} data - 包含配置数据的字符串
+     */
+    parseConfigBinary(data) {
+        // 提取config=后的二进制数据
+        const configData = data.substring('config='.length);
+        if (configData.length < 32) {
+            console.warn('配置数据长度不足32字节:', configData.length);
+            return;
+        }
+        
+        // 创建DataView来解析二进制数据
+        const buffer = new ArrayBuffer(32);
+        const view = new DataView(buffer);
+        
+        // 将字符串转换为二进制数据
+        for (let i = 0; i < 32; i++) {
+            view.setUint8(i, configData.charCodeAt(i));
+        }
+        
+        // 解析配置数据（小端字节序）
+        const config = {
+            version: view.getUint8(0),
+            revision: view.getUint8(1),
+            led_count: view.getUint8(2),
+            color_order: view.getUint8(3),
+            brightness: view.getUint8(4),
+            effect_mode: view.getUint8(5),
+            effect_tick: view.getUint16(6, true), // true表示小端字节序
+            rotate_cw: view.getInt16(8, true),
+            rotate_ccw: view.getInt16(10, true),
+            // reserved字段从12-31，共20字节，暂不处理
+        };
+        
+        // 更新配置参数
+        this.configParams.led_count.value = config.led_count;
+        this.configParams.color_order.value = config.color_order;
+        this.configParams.brightness.value = config.brightness;
+        this.configParams.effect_mode.value = config.effect_mode;
+        this.configParams.effect_tick.value = config.effect_tick;
+        this.configParams.rotate_cw.value = config.rotate_cw;
+        this.configParams.rotate_ccw.value = config.rotate_ccw;
+        
+        // 更新UI控件
+        this.updateConfigControl('led_count', config.led_count);
+        this.updateConfigControl('color_order', config.color_order);
+        this.updateConfigControl('brightness', config.brightness);
+        this.updateConfigControl('effect_mode', config.effect_mode);
+        this.updateConfigControl('effect_tick', config.effect_tick);
+        this.updateConfigControl('rotate_cw', config.rotate_cw);
+        this.updateConfigControl('rotate_ccw', config.rotate_ccw);
+        
+        // 显示固件版本
+        if (this.firmwareVersion) {
+            this.firmwareVersion.textContent = `${config.version}.${config.revision}`;
+        }
+        
+        console.log("Config:", config);
     }
     
     /**
@@ -407,11 +466,10 @@ class SerialAssistant {
             await writer.write(sendBuffer);
             this.showStatus('正在启用配置模式...', 'info');
 
-            const response = await this.waitForData(1000);
+            const response = await this.waitForData(500);
 
-            if (response === this.RESPONSES.CONFIG_MODE_ENABLED_SUCCESS) {
+            if (response === this.RESPONSES.CONFIG_MODE_ENABLED) {
                 this.showStatus('配置模式已成功启用', 'success');
-                // 显示设置覆盖层
                 this.isConnected = true;
             } else {
                 throw new Error(`意外响应: ${response}`);

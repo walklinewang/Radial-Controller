@@ -60,7 +60,7 @@ void loop() {
             receive_str[receive_ptr] = serialChar;
             receive_ptr++;
 
-            if (receive_ptr == 63) {
+            if (receive_ptr == 19) {
                 receive_str[receive_ptr] = '\0';
                 received = true;
                 break;
@@ -135,11 +135,17 @@ void loop() {
 void processCommand(char *command) {
     if (strcmp(command, "config_mode_enabled") == 0) {
         is_config_mode = true;
-        USBSerial_println("config_mode_enabled_success");;
+        USBSerial_println("config_mode_enabled_success");
         DEBUG_PRINTLN("Config mode enabled");
     } else if (strcmp(command, "config_mode_disabled") == 0) {
         is_config_mode = false;
         DEBUG_PRINTLN("Config mode disabled");
+        // } else if (strcmp(command, "get_version") == 0) {
+        //     USBSerial_print("version=");
+        //     USBSerial_print(EEPROM_GetVersion());
+        // } else if (strcmp(command, "get_revision") == 0) {
+        //     USBSerial_print("revision=");
+        //     USBSerial_println(EEPROM_GetRevision());
     } else if (strcmp(command, "show_menu") == 0) {
         DEBUG_PRINTLN("Radial button long press");
 
@@ -187,22 +193,26 @@ void processCommand(char *command) {
         WS2812_Clear();
         WS2812_Show();
     } else if (strcmp(command, "get_config") == 0) {
-        DEBUG_PRINTLN("Getting config");
-        // 返回当前配置信息
-        USBSerial_print("led_count=");
-        USBSerial_println(EEPROM_GetLedCount());
-        USBSerial_print("color_order=");
-        USBSerial_println(EEPROM_GetColorOrder());
-        USBSerial_print("brightness=");
-        USBSerial_println(EEPROM_GetBrightness());
-        USBSerial_print("effect_mode=");
-        USBSerial_println(EEPROM_GetEffectMode());
-        USBSerial_print("effect_tick=");
-        USBSerial_println(EEPROM_GetEffectTick());
-        USBSerial_print("rotate_cw=");
-        USBSerial_println(EEPROM_GetRotateCW());
-        USBSerial_print("rotate_ccw=");
-        USBSerial_println(EEPROM_GetRotateCCW());
+        // 获取完整配置结构体
+        config_t *config = EEPROM_GetConfigData();
+
+        // 发送配置数据
+        USBSerial_print("config=");
+
+        // 发送32字节配置数据
+        for (uint16_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
+            const uint8_t *data = (const uint8_t *)config;
+            USBSerial_write(data[i]);
+        }
+
+        USBSerial_println();
+        USBSerial_flush();
+    } else if (strcmp(command, "get_struct_size") == 0) {
+        // 发送CONFIG_STRUCT_SIZE的值
+        USBSerial_print("struct_size=");
+        USBSerial_print(CONFIG_STRUCT_SIZE);
+        USBSerial_println();
+        USBSerial_flush();
     } else if (strncmp(command, "set_", 4) == 0) {
         // 处理set_开头的命令，用于设置单个参数
         char *param = command + 4;
