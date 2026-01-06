@@ -49,7 +49,7 @@ eeprom_status_t EEPROM_SaveConfig() {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
-    // 将配置数据写入EEPROM
+    // 版本信息写入默认值
     eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 0, CURRENT_CONFIG_VERSION);
     eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 1, CURRENT_CONFIG_REVISION);
 
@@ -95,7 +95,7 @@ eeprom_status_t EEPROM_Validate() {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
-    // 检查 LED 数量是否在有效范围内（1-10）
+    // 检查 LED 数量是否在有效范围内
     if (config.led_count < 1 || config.led_count > 10) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
@@ -105,12 +105,12 @@ eeprom_status_t EEPROM_Validate() {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
-    // 检查灯效循环周期是否在有效范围内（20-500ms）
+    // 检查灯效循环周期是否在有效范围内
     if (config.effect_tick < 20 || config.effect_tick > 500) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
-    // 检查旋转角度是否在有效范围内（1-360度）
+    // 检查旋转角度是否在有效范围内
     if (config.rotate_cw < 1 || config.rotate_cw > 360 ||
         config.rotate_ccw < -360 || config.rotate_ccw > -1) {
         return EEPROM_STATUS_INVALID_PARAM;
