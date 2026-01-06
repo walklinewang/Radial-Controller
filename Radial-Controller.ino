@@ -16,21 +16,27 @@
 #include "src/Drivers/EEPROM.h"
 #include "src/Drivers/MyWS2812.h"
 
-void processCommand(char *command);
+#define HEARTBEAT_TIMEOUT 4000 // 心跳超时时间（4秒）
+
+void process_heartbeat();
+void process_command(unsigned char *command);
 
 // 接收缓冲区，用于存储从串口接收的命令
-char receive_str[50];
+unsigned char receive_str[50];
 uint8_t receive_ptr = 0;
 bool received = false;
 
 // 上一次编码器旋转方向
 ec11_direction_t last_direction = EC11_DIR_CW;
 
-// tick 计数器，用于控制 LED 亮度更新频率
+// tick 计数器，用于控制 LED 灯效更新频率
 uint16_t tick_count = 0;
 
 // 是否为配置模式
 bool is_config_mode = false;
+
+// 心跳检测相关变量
+uint32_t heartbeat_last_received = 0; // 最后一次收到心跳的时间戳
 
 void setup() {
     USBInit();
@@ -47,19 +53,18 @@ void setup() {
 }
 
 void loop() {
-    while (USBSerial_available()) {
-        char serialChar = USBSerial_read();
+    bool is_save_command = false;
 
-        // 对于save_settings=命令，我们需要特殊处理，因为它包含二进制数据
-        // 检查是否已经接收到"save_settings="前缀
-        bool is_save_command = false;
+    while (USBSerial_available()) {
+        unsigned char serial_char = USBSerial_read();
+
+        // 针对 save_settings 命令的特殊处理
         if (receive_ptr >= 14) {
             is_save_command = (memcmp(receive_str, "save_settings=", 14) == 0);
         }
 
-        // 如果是save_settings=命令，继续接收直到收到完整的30字节数据
         if (is_save_command) {
-            receive_str[receive_ptr] = serialChar;
+            receive_str[receive_ptr] = serial_char;
             receive_ptr++;
 
             // save_settings=命令格式：14字节前缀 + 30字节数据 + 1字节换行符
@@ -70,14 +75,14 @@ void loop() {
             }
         }
         // 对于其他命令，使用换行符或回车符作为结束标记
-        else if ((serialChar == '\n') || (serialChar == '\r')) {
+        else if ((serial_char == '\n') || (serial_char == '\r')) {
             receive_str[receive_ptr] = '\0';
             if (receive_ptr > 0) {
                 received = true;
                 break;
             }
         } else {
-            receive_str[receive_ptr] = serialChar;
+            receive_str[receive_ptr] = serial_char;
             receive_ptr++;
 
             if (receive_ptr >= sizeof(receive_str) - 1) {
@@ -89,13 +94,15 @@ void loop() {
     }
 
     if (received) {
-        processCommand(receive_str);
+        process_command(receive_str);
 
-        received = false;
         receive_ptr = 0;
+        received = false;
     }
 
     if (is_config_mode) {
+        process_heartbeat();
+
         delay(1);
         return;
     }
@@ -132,6 +139,7 @@ void loop() {
     // 处理编码器按键
     if (EC11_IsKeyChanged()) {
         ec11_key_state_t key_state = EC11_GetKeyState();
+
         if (key_state == EC11_KEY_PRESSED) {
             Radial_SendData(1, 0); // 按键按下
         } else {
@@ -141,28 +149,55 @@ void loop() {
 }
 
 /**
+ * @brief 处理心跳包命令
+ */
+void process_heartbeat() {
+    uint32_t current_time = millis();
+
+    if (current_time - heartbeat_last_received >= HEARTBEAT_TIMEOUT) {
+        // 心跳超时，退出配置模式
+        is_config_mode = false;
+        heartbeat_last_received = 0; // 重置心跳时间戳
+
+        USBSerial_println("config_mode_disabled_timeout");
+        USBSerial_flush();
+
+        // 重新初始化LED
+        WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
+        WS2812_SetBrightness(EEPROM_GetBrightness());
+    }
+}
+
+/**
  * @brief 处理 CDC 接收到的命令
  * @param command 接收到的命令字符串
  */
-void processCommand(char *command) {
-    if (strcmp((const char *)command, "config_mode_enabled") == 0) {
+void process_command(unsigned char *command) {
+    if (strcmp((const unsigned char *)command, "config_mode_enabled") == 0) {
         is_config_mode = true;
+
+        // 初始化心跳检测，设置最后收到心跳时间为当前时间
+        heartbeat_last_received = millis();
+
         USBSerial_println("config_mode_enabled_success");
         USBSerial_flush();
-    } else if (strcmp((const char *)command, "config_mode_disabled") == 0) {
-        is_config_mode = false;
-    } else if (strcmp((const char *)command, "load_settings") == 0) {
+    } else if (strcmp((const unsigned char *)command, "heartbeat") == 0) {
+        // 接收网页端发送的心跳包
+        if (is_config_mode) {
+            heartbeat_last_received = millis(); // 更新最后收到心跳的时间戳
+        }
+    } else if (strcmp((const unsigned char *)command, "load_settings") == 0) {
         // 从 EEPROM 加载配置参数
         EEPROM_LoadConfig();
 
         // 获取完整配置结构体
         config_t *config = EEPROM_GetConfigData();
 
-        // 发送配置数据
+        // 发送配置数据前缀
         USBSerial_print("config=");
 
-        // 发送32字节配置数据
-        for (uint16_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
+        // 发送 32 字节配置数据
+        for (uint8_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
             const uint8_t *data = (const uint8_t *)config;
             USBSerial_write(data[i]);
         }
@@ -178,18 +213,16 @@ void processCommand(char *command) {
 
         uint8_t *config_bytes = (uint8_t *)config;
 
-        // 复制30字节配置数据，跳过前2字节（version和revision）
+        // 复制 30 字节配置数据，跳过前 2 字节（version 和 revision）
         for (uint8_t i = 0; i < 30; i++) {
             config_bytes[2 + i] = data_ptr[i];
         }
 
         // 保存配置到EEPROM
         if (EEPROM_SaveConfig() == EEPROM_STATUS_OK) {
-            // 发送响应
             USBSerial_println("save_settings_success");
             USBSerial_flush();
         } else {
-            // 发送错误响应
             USBSerial_println("save_settings_error");
             USBSerial_flush();
         }
@@ -203,11 +236,12 @@ void processCommand(char *command) {
 
         USBSerial_println("reset_settings_success");
         USBSerial_flush();
+        /* 以下为测试用命令 */
     } else if (strcmp(command, "show_menu") == 0) {
-        // 立即模拟径向控制器按钮按下
+        // 模拟径向控制器按钮按下
         Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
 
-        // 保持按下状态0.5秒（500毫秒）
+        // 保持按下状态 500 毫秒
         delay(500);
 
         // 执行按钮释放动作
@@ -216,7 +250,7 @@ void processCommand(char *command) {
         // 立即模拟径向控制器按钮按下
         Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
 
-        // 保持按下状态0.1秒
+        // 保持按下状态 100 毫秒
         delay(100);
 
         // 执行按钮释放动作
