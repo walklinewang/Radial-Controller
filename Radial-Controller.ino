@@ -19,7 +19,7 @@
 void processCommand(char *command);
 
 // 接收缓冲区，用于存储从串口接收的命令
-char receive_str[20];
+char receive_str[50];
 uint8_t receive_ptr = 0;
 bool received = false;
 
@@ -29,7 +29,7 @@ ec11_direction_t last_direction = EC11_DIR_CW;
 // tick 计数器，用于控制 LED 亮度更新频率
 uint16_t tick_count = 0;
 
-// 是否为在线配置模式
+// 是否为配置模式
 bool is_config_mode = false;
 
 void setup() {
@@ -39,7 +39,7 @@ void setup() {
     EEPROM_LoadConfig();
 
     // 初始化 EC11 编码器
-    EC11_Init(EC11_PIN_A, EC11_PIN_B, EC11_PIN_KEY);
+    EC11_Init(EC11_PIN_A, EC11_PIN_B, EC11_PIN_K);
 
     // 初始化 WS2812 LED
     WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
@@ -50,7 +50,27 @@ void loop() {
     while (USBSerial_available()) {
         char serialChar = USBSerial_read();
 
-        if ((serialChar == '\n') || (serialChar == '\r')) {
+        // 对于save_settings=命令，我们需要特殊处理，因为它包含二进制数据
+        // 检查是否已经接收到"save_settings="前缀
+        bool is_save_command = false;
+        if (receive_ptr >= 14) {
+            is_save_command = (memcmp(receive_str, "save_settings=", 14) == 0);
+        }
+
+        // 如果是save_settings=命令，继续接收直到收到完整的30字节数据
+        if (is_save_command) {
+            receive_str[receive_ptr] = serialChar;
+            receive_ptr++;
+
+            // save_settings=命令格式：14字节前缀 + 30字节数据 + 1字节换行符
+            if (receive_ptr >= 14 + 30 + 1) {
+                receive_str[receive_ptr] = '\0';
+                received = true;
+                break;
+            }
+        }
+        // 对于其他命令，使用换行符或回车符作为结束标记
+        else if ((serialChar == '\n') || (serialChar == '\r')) {
             receive_str[receive_ptr] = '\0';
             if (receive_ptr > 0) {
                 received = true;
@@ -60,7 +80,7 @@ void loop() {
             receive_str[receive_ptr] = serialChar;
             receive_ptr++;
 
-            if (receive_ptr == 19) {
+            if (receive_ptr >= sizeof(receive_str) - 1) {
                 receive_str[receive_ptr] = '\0';
                 received = true;
                 break;
@@ -69,10 +89,6 @@ void loop() {
     }
 
     if (received) {
-        // 处理接收到的命令
-        // DEBUG_PRINT("Command: ");
-        // DEBUG_PRINTLN(receive_str);
-
         processCommand(receive_str);
 
         received = false;
@@ -106,11 +122,9 @@ void loop() {
     }
 
     if (direction == EC11_DIR_CW) {
-        DEBUG_PRINTLN("Encoder rotated right");
         Radial_SendData(0,
                         EEPROM_GetRotateCW()); // 顺时针旋转，发送正值，单位：度
     } else if (direction == EC11_DIR_CCW) {
-        DEBUG_PRINTLN("Encoder rotated left");
         Radial_SendData(
             0, EEPROM_GetRotateCCW()); // 逆时针旋转，发送负值，单位：度
     }
@@ -119,80 +133,28 @@ void loop() {
     if (EC11_IsKeyChanged()) {
         ec11_key_state_t key_state = EC11_GetKeyState();
         if (key_state == EC11_KEY_PRESSED) {
-            DEBUG_PRINTLN("Encoder key pressed");
             Radial_SendData(1, 0); // 按键按下
         } else {
-            DEBUG_PRINTLN("Encoder key released");
             Radial_SendData(0, 0); // 按键释放
         }
     }
 }
 
 /**
- * @brief 处理CDC接收到的命令
+ * @brief 处理 CDC 接收到的命令
  * @param command 接收到的命令字符串
  */
 void processCommand(char *command) {
-    if (strcmp(command, "config_mode_enabled") == 0) {
+    if (strcmp((const char *)command, "config_mode_enabled") == 0) {
         is_config_mode = true;
         USBSerial_println("config_mode_enabled_success");
-        DEBUG_PRINTLN("Config mode enabled");
-    } else if (strcmp(command, "config_mode_disabled") == 0) {
+        USBSerial_flush();
+    } else if (strcmp((const char *)command, "config_mode_disabled") == 0) {
         is_config_mode = false;
-        DEBUG_PRINTLN("Config mode disabled");
-        // } else if (strcmp(command, "get_version") == 0) {
-        //     USBSerial_print("version=");
-        //     USBSerial_print(EEPROM_GetVersion());
-        // } else if (strcmp(command, "get_revision") == 0) {
-        //     USBSerial_print("revision=");
-        //     USBSerial_println(EEPROM_GetRevision());
-    } else if (strcmp(command, "show_menu") == 0) {
-        DEBUG_PRINTLN("Radial button long press");
+    } else if (strcmp((const char *)command, "load_settings") == 0) {
+        // 从 EEPROM 加载配置参数
+        EEPROM_LoadConfig();
 
-        // 立即模拟径向控制器按钮按下
-        Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
-
-        // 保持按下状态0.5秒（500毫秒）
-        delay(500);
-
-        // 执行按钮释放动作
-        Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
-    } else if (strcmp(command, "click") == 0) {
-        DEBUG_PRINTLN("Radial button click");
-
-        // 立即模拟径向控制器按钮按下
-        Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
-
-        // 保持按下状态0.1秒（100毫秒）
-        delay(100);
-
-        // 执行按钮释放动作
-        Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
-    } else if (strcmp(command, "rotate_l") == 0) {
-        DEBUG_PRINTLN("Radial rotate left");
-
-        // 模拟向左旋转（逆时针），单次旋转值为 -10 度
-        Radial_SendData(0, -10); // button=0(释放), degree=-10(向左旋转)
-    } else if (strcmp(command, "rotate_r") == 0) {
-        DEBUG_PRINTLN("Radial rotate right");
-
-        // 模拟向右旋转（顺时针），单次旋转值为 10 度
-        Radial_SendData(0, 10); // button=0(释放), degree=10(向右旋转)
-    } else if (strcmp(command, "test_led") == 0) {
-        DEBUG_PRINTLN("Testing LED");
-        // 测试LED灯效
-        WS2812_SetAllPixels(255, 0, 0);
-        WS2812_Show();
-        delay(500);
-        WS2812_SetAllPixels(0, 255, 0);
-        WS2812_Show();
-        delay(500);
-        WS2812_SetAllPixels(0, 0, 255);
-        WS2812_Show();
-        delay(500);
-        WS2812_Clear();
-        WS2812_Show();
-    } else if (strcmp(command, "get_config") == 0) {
         // 获取完整配置结构体
         config_t *config = EEPROM_GetConfigData();
 
@@ -207,56 +169,76 @@ void processCommand(char *command) {
 
         USBSerial_println();
         USBSerial_flush();
-    } else if (strcmp(command, "get_struct_size") == 0) {
-        // 发送CONFIG_STRUCT_SIZE的值
-        USBSerial_print("struct_size=");
-        USBSerial_print(CONFIG_STRUCT_SIZE);
-        USBSerial_println();
-        USBSerial_flush();
-    } else if (strncmp(command, "set_", 4) == 0) {
-        // 处理set_开头的命令，用于设置单个参数
-        char *param = command + 4;
-        char *value = strchr(param, '=');
-        if (value) {
-            *value = '\0';
-            value++;
+    } else if (memcmp(command, "save_settings=", 14) == 0) {
+        // 从命令中提取30字节配置数据
+        config_t *config = EEPROM_GetConfigData();
 
-            if (strcmp(param, "led_count") == 0) {
-                EEPROM_SetLedCount(atoi(value));
-                // 重新初始化WS2812
-                WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(),
-                            EEPROM_GetColorOrder());
-            } else if (strcmp(param, "brightness") == 0) {
-                EEPROM_SetBrightness(atoi(value));
-                WS2812_SetBrightness(EEPROM_GetBrightness());
-            } else if (strcmp(param, "effect_mode") == 0) {
-                EEPROM_SetEffectMode(atoi(value));
-            } else if (strcmp(param, "effect_tick") == 0) {
-                EEPROM_SetEffectTick(atoi(value));
-            } else if (strcmp(param, "rotate_cw") == 0) {
-                EEPROM_SetRotateCW(atoi(value));
-            } else if (strcmp(param, "rotate_ccw") == 0) {
-                EEPROM_SetRotateCCW(atoi(value));
-            } else if (strcmp(param, "color_order") == 0) {
-                EEPROM_SetColorOrder(atoi(value));
-                // 重新初始化WS2812
-                WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(),
-                            EEPROM_GetColorOrder());
-            }
+        // 跳过"save_settings="前缀（14字节）
+        const uint8_t *data_ptr = (const uint8_t *)(command + 14);
 
-            // DEBUG_PRINT("Set ");
-            // DEBUG_PRINT(param);
-            // DEBUG_PRINT(" to ");
-            // DEBUG_PRINTLN(value);
+        uint8_t *config_bytes = (uint8_t *)config;
+
+        // 复制30字节配置数据，跳过前2字节（version和revision）
+        for (uint8_t i = 0; i < 30; i++) {
+            config_bytes[2 + i] = data_ptr[i];
         }
-    } else if (strcmp(command, "save_config") == 0) {
-        DEBUG_PRINTLN("Saving config");
-        EEPROM_SaveConfig();
-    } else if (strcmp(command, "reset_config") == 0) {
-        DEBUG_PRINTLN("Resetting config");
+
+        // 保存配置到EEPROM
+        if (EEPROM_SaveConfig() == EEPROM_STATUS_OK) {
+            // 发送响应
+            USBSerial_println("save_settings_success");
+            USBSerial_flush();
+        } else {
+            // 发送错误响应
+            USBSerial_println("save_settings_error");
+            USBSerial_flush();
+        }
+    } else if (strcmp(command, "reset_settings") == 0) {
         EEPROM_Reset();
+        EEPROM_SaveConfig();
+
         // 重新初始化WS2812
         WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
         WS2812_SetBrightness(EEPROM_GetBrightness());
+
+        USBSerial_println("reset_settings_success");
+        USBSerial_flush();
+    } else if (strcmp(command, "show_menu") == 0) {
+        // 立即模拟径向控制器按钮按下
+        Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
+
+        // 保持按下状态0.5秒（500毫秒）
+        delay(500);
+
+        // 执行按钮释放动作
+        Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
+    } else if (strcmp(command, "click") == 0) {
+        // 立即模拟径向控制器按钮按下
+        Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
+
+        // 保持按下状态0.1秒
+        delay(100);
+
+        // 执行按钮释放动作
+        Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
+    } else if (strcmp(command, "rotate_l") == 0) {
+        // 模拟向左旋转（逆时针），单次旋转值为 -10 度
+        Radial_SendData(0, -10); // button=0(释放), degree=-10(向左旋转)
+    } else if (strcmp(command, "rotate_r") == 0) {
+        // 模拟向右旋转（顺时针），单次旋转值为 10 度
+        Radial_SendData(0, 10); // button=0(释放), degree=10(向右旋转)
+    } else if (strcmp(command, "test_led") == 0) {
+        // 测试LED灯效
+        WS2812_SetAllPixels(255, 0, 0);
+        WS2812_Show();
+        delay(500);
+        WS2812_SetAllPixels(0, 255, 0);
+        WS2812_Show();
+        delay(500);
+        WS2812_SetAllPixels(0, 0, 255);
+        WS2812_Show();
+        delay(500);
+        WS2812_Clear();
+        WS2812_Show();
     }
 }
