@@ -20,7 +20,7 @@ config_t *EEPROM_GetConfigData(void) { return &config; }
  */
 eeprom_status_t EEPROM_LoadConfig() {
     // 从EEPROM读取配置数据
-    for (uint16_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
+    for (uint8_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
         uint8_t *data = (uint8_t *)&config;
         data[i] = eeprom_read_byte(EEPROM_CONFIG_START_ADDRESS + i);
     }
@@ -50,7 +50,10 @@ eeprom_status_t EEPROM_SaveConfig() {
     }
 
     // 将配置数据写入EEPROM
-    for (uint16_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
+    eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 0, CURRENT_CONFIG_VERSION);
+    eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 1, CURRENT_CONFIG_REVISION);
+
+    for (uint8_t i = 2; i < CONFIG_STRUCT_SIZE; i++) {
         const uint8_t *data = (const uint8_t *)&config;
         eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + i, data[i]);
     }

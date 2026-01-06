@@ -32,20 +32,20 @@ typedef enum {
  * @brief 设备配置参数结构体
  */
 typedef struct {
-    uint8_t version;  // 版本号
-    uint8_t revision; // 修订号
+    uint8_t version;  // 版本号 (0)
+    uint8_t revision; // 修订号 (1)
 
-    uint8_t led_count;   // LED 灯珠数量
-    uint8_t color_order; // LED 颜色顺序（0:GRB, 1:RGB）
-    uint8_t brightness;  // 亮度等级（0-4）
+    uint8_t led_count;   // LED 灯珠数量 (2)
+    uint8_t color_order; // LED 颜色顺序（0:GRB, 1:RGB） (3)
+    uint8_t brightness;  // 亮度等级（0-4） (4)
 
-    uint8_t effect_mode;  // LED 灯效模式
-    uint16_t effect_tick; // LED 灯效循环周期（ms）
+    uint8_t effect_mode;  // LED 灯效模式 (5)
+    uint16_t effect_tick; // LED 灯效循环周期（ms） (6-7)
 
-    int16_t rotate_cw;  // 顺时针旋转角度
-    int16_t rotate_ccw; // 逆时针旋转角度
+    int16_t rotate_cw;  // 顺时针旋转角度 (8-9)
+    int16_t rotate_ccw; // 逆时针旋转角度 (10-11)
 
-    uint8_t reserved[20]; // 预留空间，用于未来扩展
+    uint8_t reserved[20]; // 预留空间，用于未来扩展 (12-31)
 } config_t;               /* 共 32 字节*/
 
 /**
