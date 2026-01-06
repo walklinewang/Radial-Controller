@@ -3,7 +3,6 @@ class SerialAssistant {
         // 命令常量
         this.COMMANDS = {
             CONFIG_MODE_ENABLE: 'config_mode_enabled',
-            CONFIG_MODE_DISABLE: 'config_mode_disabled',
             LOAD_SETTINGS: 'load_settings',
             SAVE_SETTINGS: 'save_settings',
             RESET_SETTINGS: 'reset_settings',
@@ -13,12 +12,13 @@ class SerialAssistant {
             CLICK: 'click',
             ROTATE_LEFT: 'rotate_left',
             ROTATE_RIGHT: 'rotate_right',
+            HEARTBEAT: 'heartbeat',
         };
 
         // 响应常量
         this.RESPONSES = {
             CONFIG_MODE_ENABLED: 'config_mode_enabled_success',
-            CONFIG_MODE_DISABLED: 'config_mode_disabled_success',
+            CONFIG_MODE_TIMEOUT: 'config_mode_disabled_timeout',
             LOAD_SETTINGS: 'load_settings_success',
             SAVE_SETTINGS: 'save_settings_success',
             RESET_SETTINGS: 'reset_settings_success',
@@ -32,6 +32,11 @@ class SerialAssistant {
         this.usbVendorId = 0x1209;
         this.receiveBuffer = '';
         this.dataReceivedResolver = null;
+
+        // 心跳包相关配置
+        this.HEARTBEAT_INTERVAL = 2000; // 心跳发送间隔（2秒）
+        this.heartbeatTimer = null; // 心跳定时器
+        this.lastHeartbeatSent = Date.now();
 
         // 设置参数
         this.configParams = {
@@ -53,7 +58,7 @@ class SerialAssistant {
 
     /**
      * 清除定时器
-     * 用于清除连接检查定时器和等待数据定时器
+     * 用于清除连接检查定时器、等待数据定时器和心跳定时器
      */
     clear_timer() {
         if (this.connectionCheckInterval) {
@@ -64,6 +69,11 @@ class SerialAssistant {
         if (this.waitForDataTimer) {
             clearTimeout(this.waitForDataTimer);
             this.waitForDataTimer = null;
+        }
+
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
         }
     }
 
@@ -241,7 +251,7 @@ class SerialAssistant {
                 if (value) {
                     // 将文本数据添加到缓冲区
                     this.receiveBuffer += value;
-                    this.processReceivedData();
+                    this.process_received_data();
                 }
             }
         } catch (error) {
@@ -271,15 +281,27 @@ class SerialAssistant {
     /**
      * 等待接收数据
      * @param {number} timeout - 超时时间（毫秒）
+     * @param {Array<string>} allowedResponses - 允许的响应类型数组，如果未提供则接收所有响应
      * @returns {Promise<string>} 接收到的数据
      */
-    serial_wait_for_data(timeout = 500) {
+    serial_wait_for_data(timeout = 500, allowedResponses = null) {
         return new Promise((resolve, reject) => {
-            this.dataReceivedResolver = resolve;
+            const originalResolver = this.dataReceivedResolver;
+
+            this.dataReceivedResolver = (data) => {
+                // 如果没有指定允许的响应类型，或者接收到的响应在允许列表中，则返回该响应
+                if (!allowedResponses || allowedResponses.includes(data)) {
+                    this.dataReceivedResolver = originalResolver;
+                    resolve(data);
+                } else {
+                    // 忽略不符合条件的响应
+                    console.log('忽略不相关响应:', data);
+                }
+            };
 
             // 设置超时
             const timer = setTimeout(() => {
-                this.dataReceivedResolver = null;
+                this.dataReceivedResolver = originalResolver;
                 reject(new Error('等待数据超时'));
             }, timeout);
 
@@ -385,6 +407,17 @@ class SerialAssistant {
             this.showCustomAlert('连接断开', '串口连接已断开，设备可能已复位，请重新连接');
         }
     }
+
+    /**
+     * 处理配置模式超时
+     */
+    handle_config_mode_timeout() {
+        this.isConnected = false;
+        this.clear_timer();
+        this.update_ui_states();
+        this.showStatus('参数设置模式已超时退出', 'error');
+        this.showCustomAlert('连接断开', '参数设置模式已超时退出，请重新连接');
+    }
     // #endregion 串口连接相关方法
 
 
@@ -392,7 +425,7 @@ class SerialAssistant {
     /**
      * 处理接收到的数据
     */
-    processReceivedData() {
+    process_received_data() {
         // 分割接收到的数据，按行处理
         const lines = this.receiveBuffer.split('\r\n');
         this.receiveBuffer = lines.pop(); // 保留最后一行（可能不完整）
@@ -407,7 +440,7 @@ class SerialAssistant {
                         // 处理二进制参数设置数据
                         // 不要trim()，否则会丢失二进制数据
                         processedLine = this.RESPONSES.LOAD_SETTINGS;
-                        this.parseConfigBinary(line);
+                        this.parse_config_binary_data(line);
                     } else {
                         // 处理普通key=value格式数据
                         processedLine = line.trim();
@@ -427,11 +460,20 @@ class SerialAssistant {
                     // 处理不包含=号的响应（如命令确认信息）
                     processedLine = line.trim();
                 }
-            }
 
-            // 通知等待数据的promise
-            if (this.dataReceivedResolver && processedLine) {
-                this.dataReceivedResolver(processedLine);
+                // 通知等待数据的promise
+                let shouldHandleTimeout = true;
+                if (this.dataReceivedResolver && processedLine) {
+                    // 只有当没有等待数据的promise，或者响应不在允许列表中时，才会继续处理超时
+                    // 否则，等待数据的promise会处理这个响应
+                    this.dataReceivedResolver(processedLine);
+                    shouldHandleTimeout = false;
+                }
+
+                // 处理配置模式超时，只有当没有等待数据的promise时才处理
+                if (shouldHandleTimeout && processedLine === this.RESPONSES.CONFIG_MODE_TIMEOUT) {
+                    this.handleConfigModeTimeout();
+                }
             }
         }
     }
@@ -440,7 +482,7 @@ class SerialAssistant {
      * 解析二进制参数设置数据
      * @param {string} data - 包含参数设置数据的字符串
      */
-    parseConfigBinary(data) {
+    parse_config_binary_data(data) {
         // 提取config=后的二进制数据
         const configData = data.substring('config='.length);
 
@@ -513,11 +555,17 @@ class SerialAssistant {
             const buffer = new TextEncoder().encode(command);
             await writer.write(buffer);
 
-            const response = await this.serial_wait_for_data();
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.CONFIG_MODE_ENABLED]);
 
             if (response === this.RESPONSES.CONFIG_MODE_ENABLED) {
                 this.isConnected = true;
                 this.showStatus('参数设置模式已成功启用', 'success');
+
+                // 启动心跳定时器，每2秒发送一次心跳包
+                this.heartbeatTimer = setInterval(() => this.config_send_heartbeat(), this.HEARTBEAT_INTERVAL);
+
+                // 立即发送第一个心跳包
+                await this.config_send_heartbeat();
             } else {
                 throw new Error(`意外响应: ${response}`);
             }
@@ -539,7 +587,7 @@ class SerialAssistant {
             const buffer = new TextEncoder().encode(command);
             await writer.write(buffer);
 
-            const response = await this.serial_wait_for_data();
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.LOAD_SETTINGS]);
 
             if (response === this.RESPONSES.LOAD_SETTINGS) {
                 this.showStatus('参数设置已加载', 'success');
@@ -552,7 +600,7 @@ class SerialAssistant {
     }
 
     async config_save_settings() {
-        // try {
+        try {
             const writer = this.serial_get_writer();
 
             // 创建配置数据缓冲区（共30字节，不含version和revision）
@@ -598,28 +646,28 @@ class SerialAssistant {
             const newlineBuffer = new TextEncoder().encode('\n');
             const prefixBuffer = new TextEncoder().encode(commandPrefix);
             const dataBuffer = new Uint8Array(buffer); // 将ArrayBuffer转换为Uint8Array
-            
+
             // 使用实际编码后的字节数创建缓冲区
             const fullBuffer = new Uint8Array(prefixBuffer.length + dataBuffer.length + newlineBuffer.length);
-            
+
             fullBuffer.set(prefixBuffer, 0);
             fullBuffer.set(dataBuffer, prefixBuffer.length);
             fullBuffer.set(newlineBuffer, prefixBuffer.length + dataBuffer.length);
-            
+
             // 一次性发送完整命令
             await writer.write(fullBuffer);
 
-            const response = await this.serial_wait_for_data();
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.SAVE_SETTINGS]);
 
             if (response === this.RESPONSES.SAVE_SETTINGS) {
                 this.showStatus('设置已保存到设备', 'success');
             } else {
                 throw new Error(`意外响应: ${response}`);
             }
-        // } catch (error) {
-        //     this.writer = this.serial_release_resource(this.writer);
-        //     this.showStatus(`保存设置失败: ${error.message}`, 'error');
-        // }
+        } catch (error) {
+            this.writer = this.serial_release_resource(this.writer);
+            this.showStatus(`保存设置失败: ${error.message}`, 'error');
+        }
     }
 
     /**
@@ -634,7 +682,7 @@ class SerialAssistant {
             const buffer = new TextEncoder().encode(command);
             await writer.write(buffer);
 
-            const response = await this.serial_wait_for_data();
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.RESET_SETTINGS]);
 
             if (response === this.RESPONSES.RESET_SETTINGS) {
                 this.showStatus('参数设置已重置为默认值', 'success');
@@ -646,6 +694,30 @@ class SerialAssistant {
             }
         } catch (error) {
             this.showStatus(`重置参数设置失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 发送心跳请求
+     */
+    async config_send_heartbeat() {
+        try {
+            if (!this.isConnected) {
+                return;
+            }
+
+            // 发送心跳请求
+            const writer = this.serial_get_writer();
+            const command = this.COMMANDS.HEARTBEAT + '\n';
+            const buffer = new TextEncoder().encode(command);
+            await writer.write(buffer);
+
+            // 更新心跳状态
+            this.lastHeartbeatSent = Date.now();
+
+            console.log('心跳请求已发送');
+        } catch (error) {
+            console.error('发送心跳请求失败:', error);
         }
     }
     // #endregion 设备参数设置相关方法
