@@ -16,6 +16,12 @@
 #include "src/Drivers/EEPROM.h"
 #include "src/Drivers/MyWS2812.h"
 
+#define CMD_CONFIG_MODE_ENABLED "config_mode_enabled"
+#define CMD_CONFIG_SAVE_SETTINGS "save_settings"
+#define CMD_CONFIG_RESET_SETTINGS "reset_settings"
+#define CMD_SUCCESS "_success"
+#define CMD_FAILED "_failed"
+
 #define HEARTBEAT_TIMEOUT 4000 // 心跳超时时间（4秒）
 
 void process_heartbeat();
@@ -159,7 +165,7 @@ void process_heartbeat() {
         is_config_mode = false;
         heartbeat_last_received = 0; // 重置心跳时间戳
 
-        USBSerial_println("config_mode_disabled_timeout");
+        USBSerial_println("config_mode_timedout");
         USBSerial_flush();
 
         // 重新初始化LED
@@ -173,13 +179,14 @@ void process_heartbeat() {
  * @param command 接收到的命令字符串
  */
 void process_command(unsigned char *command) {
-    if (strcmp((const unsigned char *)command, "config_mode_enabled") == 0) {
+    if (strcmp((const unsigned char *)command, CMD_CONFIG_MODE_ENABLED) == 0) {
         is_config_mode = true;
 
         // 初始化心跳检测，设置最后收到心跳时间为当前时间
         heartbeat_last_received = millis();
 
-        USBSerial_println("config_mode_enabled_success");
+        USBSerial_print(CMD_CONFIG_MODE_ENABLED);
+        USBSerial_println(CMD_SUCCESS);
         USBSerial_flush();
     } else if (strcmp((const unsigned char *)command, "heartbeat") == 0) {
         // 接收网页端发送的心跳包
@@ -204,7 +211,8 @@ void process_command(unsigned char *command) {
 
         USBSerial_println();
         USBSerial_flush();
-    } else if (memcmp(command, "save_settings=", 14) == 0) {
+    } else if (memcmp((const unsigned char *)command, "save_settings=", 14) ==
+               0) {
         // 从命令中提取30字节配置数据
         config_t *config = EEPROM_GetConfigData();
 
@@ -220,13 +228,16 @@ void process_command(unsigned char *command) {
 
         // 保存配置到EEPROM
         if (EEPROM_SaveConfig() == EEPROM_STATUS_OK) {
-            USBSerial_println("save_settings_success");
+            USBSerial_print(CMD_CONFIG_SAVE_SETTINGS);
+            USBSerial_println(CMD_SUCCESS);
             USBSerial_flush();
         } else {
-            USBSerial_println("save_settings_error");
+            USBSerial_print(CMD_CONFIG_SAVE_SETTINGS);
+            USBSerial_println(CMD_FAILED);
             USBSerial_flush();
         }
-    } else if (strcmp(command, "reset_settings") == 0) {
+    } else if (strcmp((const unsigned char *)command,
+                      CMD_CONFIG_RESET_SETTINGS) == 0) {
         EEPROM_Reset();
         EEPROM_SaveConfig();
 
@@ -234,10 +245,12 @@ void process_command(unsigned char *command) {
         WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
         WS2812_SetBrightness(EEPROM_GetBrightness());
 
-        USBSerial_println("reset_settings_success");
+        USBSerial_print(CMD_CONFIG_RESET_SETTINGS);
+        USBSerial_println(CMD_SUCCESS);
         USBSerial_flush();
+
         /* 以下为测试用命令 */
-    } else if (strcmp(command, "show_menu") == 0) {
+    } else if (strcmp((const unsigned char *)command, "show_menu") == 0) {
         // 模拟径向控制器按钮按下
         Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
 
@@ -246,7 +259,7 @@ void process_command(unsigned char *command) {
 
         // 执行按钮释放动作
         Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
-    } else if (strcmp(command, "click") == 0) {
+    } else if (strcmp((const unsigned char *)command, "click") == 0) {
         // 立即模拟径向控制器按钮按下
         Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
 
@@ -255,13 +268,13 @@ void process_command(unsigned char *command) {
 
         // 执行按钮释放动作
         Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
-    } else if (strcmp(command, "rotate_l") == 0) {
+    } else if (strcmp((const unsigned char *)command, "rotate_l") == 0) {
         // 模拟向左旋转（逆时针），单次旋转值为 -10 度
         Radial_SendData(0, -10); // button=0(释放), degree=-10(向左旋转)
-    } else if (strcmp(command, "rotate_r") == 0) {
+    } else if (strcmp((const unsigned char *)command, "rotate_r") == 0) {
         // 模拟向右旋转（顺时针），单次旋转值为 10 度
         Radial_SendData(0, 10); // button=0(释放), degree=10(向右旋转)
-    } else if (strcmp(command, "test_led") == 0) {
+    } else if (strcmp((const unsigned char *)command, "test_led") == 0) {
         // 测试LED灯效
         WS2812_SetAllPixels(255, 0, 0);
         WS2812_Show();
