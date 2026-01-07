@@ -137,9 +137,8 @@ bool Radial_SendData(__data uint8_t button, __data int16_t degree) {
 
     // 首先清除旋钮位
     radialReport.buttonDial &= RADIAL_BUTTON_MASK;
-    // 然后设置旋钮值（左移1位，因为旋钮值从bit1开始）
-    radialReport.buttonDial |=
-        ((uint16_t)(degree * 10) << 1) & RADIAL_DIAL_MASK;
+    // 然后设置旋钮值（旋钮值从bit1开始）
+    radialReport.buttonDial |= ((uint16_t)(degree * 10)) & RADIAL_DIAL_MASK;
 
     // 发送报告
     return Radial_SendReport(&radialReport);
