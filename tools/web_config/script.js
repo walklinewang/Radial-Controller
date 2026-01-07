@@ -17,17 +17,18 @@ class SerialAssistant {
 
         // 响应常量
         this.RESPONSES = {
-            CONFIG_MODE_ENABLED: 'config_mode_enabled_success',
-            CONFIG_MODE_TIMEOUT: 'config_mode_disabled_timeout',
-            LOAD_SETTINGS: 'load_settings_success',
-            SAVE_SETTINGS: 'save_settings_success',
-            RESET_SETTINGS: 'reset_settings_success',
+            CONFIG_MODE_ENABLED_SUCCESS: 'config_mode_enabled_success',
+            CONFIG_MODE_TIMEDOUT: 'config_mode_timedout',
+            LOAD_SETTINGS_SUCCESS: 'load_settings_success',
+            SAVE_SETTINGS_SUCCESS: 'save_settings_success',
+            SAVE_SETTINGS_FAILED: 'save_settings_failed',
+            RESET_SETTINGS_SUCCESS: 'reset_settings_success',
         };
 
         this.port = null;
         this.reader = null;
         this.writer = null;
-        this.isConnected = false;
+        this.is_connected = false;
         this.connectionCheckInterval = null;
         this.usbVendorId = 0x1209;
         this.receiveBuffer = '';
@@ -50,9 +51,8 @@ class SerialAssistant {
         };
 
         this.init_elements();
-        this.init_event_listeners();
-        this.check_browser_support();
         this.generate_config_controls();
+        this.check_browser_support();
         this.update_ui_states();
     }
 
@@ -80,7 +80,7 @@ class SerialAssistant {
 
     // #region 页面初始化相关方法
     /**
-     * 初始化DOM元素引用
+     * 初始化DOM元素引用和事件监听器
      */
     init_elements() {
         this.browserSupportAlert = document.getElementById('browser-support-alert');
@@ -99,13 +99,8 @@ class SerialAssistant {
         this.alertTitle = document.getElementById('alert-title');
         this.alertMessage = document.getElementById('alert-message');
         this.alertOkBtn = document.getElementById('alert-ok');
-    }
 
-    /**
-     * 初始化事件监听器
-     */
-    init_event_listeners() {
-        this.connectToggleBtn.addEventListener('click', () => this.isConnected ? this.serial_disconnect() : this.serial_connect());
+        this.connectToggleBtn.addEventListener('click', () => this.is_connected ? this.serial_disconnect() : this.serial_connect());
         this.resetSettingsBtn.addEventListener('click', () => this.config_reset_settings());
         this.reloadSettingsBtn.addEventListener('click', () => this.config_load_settings());
         this.saveSettingsBtn.addEventListener('click', () => this.config_save_settings());
@@ -176,7 +171,7 @@ class SerialAssistant {
     async serial_connect() {
         try {
             await this.serial_cleanup_resources();
-            this.showStatus('正在连接串口...', 'success');
+            this.show_status('正在连接串口...', 'success');
 
             const config = {
                 baudRate: 115200,
@@ -191,7 +186,7 @@ class SerialAssistant {
             await port.open(config);
             this.port = port;
 
-            this.showStatus(`串口连接成功 (${config.baudRate} bps, ${config.dataBits}N${config.stopBits}, ${config.parity})`, 'success');
+            this.show_status(`串口连接成功 (${config.baudRate} bps, ${config.dataBits}N${config.stopBits}, ${config.parity})`, 'success');
 
             // 开始接收数据
             this.serial_start_reading();
@@ -207,11 +202,11 @@ class SerialAssistant {
             this.connectionCheckInterval = setInterval(() => this.serial_check_connection_status(), 5000);
         } catch (error) {
             if (error.name === 'NotFoundError') {
-                this.showStatus('未选择串口，请重新连接并选择有效串口', 'warning');
+                this.show_status('未选择串口，请重新连接并选择有效串口', 'warning');
                 return;
             }
             const errorMessage = this.handle_serial_connection_error(error);
-            this.showStatus(errorMessage, 'error');
+            this.show_status(errorMessage, 'error');
             console.error('连接串口错误:', error);
         }
     }
@@ -221,14 +216,14 @@ class SerialAssistant {
      */
     async serial_disconnect() {
         try {
-            this.showStatus('正在断开串口...', 'warning');
+            this.show_status('正在断开串口...', 'warning');
             await this.serial_cleanup_resources();
-            this.showStatus('串口已断开', 'success');
+            this.show_status('串口已断开', 'success');
         } catch (error) {
             console.error('断开串口错误:', error);
-            this.isConnected = false;
+            this.is_connected = false;
             this.update_ui_states();
-            this.showStatus(`断开失败: ${error.message}`, 'error');
+            this.show_status(`断开失败: ${error.message}`, 'error');
         }
     }
 
@@ -241,7 +236,7 @@ class SerialAssistant {
         }
 
         try {
-            const textDecoder = new TextDecoderStream('latin1');
+            const textDecoder = new TextDecoderStream('latin1'); // 确保二进制数据不会被错误解码
             this.reader = this.port.readable.pipeThrough(textDecoder).getReader();
 
             while (true) {
@@ -256,8 +251,8 @@ class SerialAssistant {
             }
         } catch (error) {
             console.error('接收数据错误:', error);
-            if (!this.isConnected) return;
-            this.showStatus('接收数据异常，已断开连接', 'error');
+            if (!this.is_connected) return;
+            this.show_status('接收数据异常，已断开连接', 'error');
             await this.serial_disconnect();
         } finally {
             this.reader = this.serial_release_resource(this.reader);
@@ -275,6 +270,7 @@ class SerialAssistant {
         if (!this.writer) {
             this.writer = this.port.writable.getWriter();
         }
+
         return this.writer;
     }
 
@@ -314,7 +310,7 @@ class SerialAssistant {
      * 检查串口连接状态
      */
     serial_check_connection_status() {
-        if (!this.isConnected) {
+        if (!this.is_connected) {
             this.clear_timer();
             return;
         }
@@ -328,11 +324,14 @@ class SerialAssistant {
      * @param {object} resource - 要释放的串口资源（reader, writer）
      */
     serial_release_resource(resource) {
-        if (resource) {
+        if (resource && typeof resource === 'object') {
             try {
+                // 检查是否有releaseLock方法
                 if (typeof resource.releaseLock === 'function') {
                     resource.releaseLock();
-                } else if (typeof resource.close === 'function') {
+                }
+                // 检查是否有close方法
+                else if (typeof resource.close === 'function') {
                     resource.close();
                 }
             } catch (error) {
@@ -346,11 +345,32 @@ class SerialAssistant {
      * 清理串口资源
      */
     async serial_cleanup_resources() {
-        this.isConnected = false;
+        this.is_connected = false;
         this.update_ui_states();
         this.clear_timer();
-        this.reader = this.serial_release_resource(this.reader);
-        this.writer = this.serial_release_resource(this.writer);
+
+        // 首先释放reader和writer资源
+        if (this.reader) {
+            try {
+                if (typeof this.reader.cancel === 'function') {
+                    await this.reader.cancel();
+                }
+            } catch (cancelError) {
+                console.warn('取消reader失败:', cancelError.message);
+            }
+            this.reader = this.serial_release_resource(this.reader);
+        }
+
+        if (this.writer) {
+            try {
+                if (typeof this.writer.close === 'function') {
+                    await this.writer.close();
+                }
+            } catch (closeError) {
+                console.warn('关闭writer失败:', closeError.message);
+            }
+            this.writer = this.serial_release_resource(this.writer);
+        }
 
         // 重置接收缓冲区和数据解析器
         this.receiveBuffer = '';
@@ -358,12 +378,14 @@ class SerialAssistant {
 
         if (this.port) {
             try {
-                await Promise.race([
-                    this.port.close(),
-                    new Promise(resolve => setTimeout(resolve, 500))
-                ]);
+                // 等待一小段时间确保资源完全释放
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await this.port.close();
             } catch (portError) {
-                console.warn('关闭端口失败或超时:', portError.message);
+                // 忽略"Cannot cancel a locked stream"错误，因为这通常是因为流已经被释放
+                if (!portError.message.includes('locked stream')) {
+                    console.warn('关闭端口失败:', portError.message);
+                }
             } finally {
                 this.port = null;
             }
@@ -399,11 +421,11 @@ class SerialAssistant {
      * 处理串口连接丢失
      */
     handle_serial_connection_lost() {
-        if (this.isConnected) {
-            this.isConnected = false;
+        if (this.is_connected) {
+            this.is_connected = false;
             this.clear_timer();
             this.update_ui_states();
-            this.showStatus('串口连接已断开 (设备可能已复位)', 'error');
+            this.show_status('串口连接已断开 (设备可能已复位)', 'error');
             this.showCustomAlert('连接断开', '串口连接已断开，设备可能已复位，请重新连接');
         }
     }
@@ -411,11 +433,11 @@ class SerialAssistant {
     /**
      * 处理配置模式超时
      */
-    handle_config_mode_timeout() {
-        this.isConnected = false;
+    handle_config_mode_timedout() {
+        this.is_connected = false;
         this.clear_timer();
         this.update_ui_states();
-        this.showStatus('参数设置模式已超时退出', 'error');
+        this.show_status('参数设置模式已超时退出', 'error');
         this.showCustomAlert('连接断开', '参数设置模式已超时退出，请重新连接');
     }
     // #endregion 串口连接相关方法
@@ -439,7 +461,7 @@ class SerialAssistant {
                     if (line.startsWith('config=')) {
                         // 处理二进制参数设置数据
                         // 不要trim()，否则会丢失二进制数据
-                        processedLine = this.RESPONSES.LOAD_SETTINGS;
+                        processedLine = this.RESPONSES.LOAD_SETTINGS_SUCCESS;
                         this.parse_config_binary_data(line);
                     } else {
                         // 处理普通key=value格式数据
@@ -471,8 +493,8 @@ class SerialAssistant {
                 }
 
                 // 处理配置模式超时，只有当没有等待数据的promise时才处理
-                if (shouldHandleTimeout && processedLine === this.RESPONSES.CONFIG_MODE_TIMEOUT) {
-                    this.handleConfigModeTimeout();
+                if (shouldHandleTimeout && processedLine === this.RESPONSES.CONFIG_MODE_TIMEDOUT) {
+                    this.handle_config_mode_timedout();
                 }
             }
         }
@@ -511,7 +533,7 @@ class SerialAssistant {
             effect_tick: view.getUint16(6, true), // true表示小端字节序
             rotate_cw: view.getInt16(8, true),
             rotate_ccw: view.getInt16(10, true),
-            // reserved字段从16-31，共16字节，暂不处理
+            // reserved字段从12-31，共20字节，暂不处理
         };
 
         // 更新参数设置
@@ -548,18 +570,18 @@ class SerialAssistant {
      */
     async config_enable_config_mode() {
         try {
-            this.showStatus('正在启用参数设置模式...', 'info');
+            this.show_status('正在启用参数设置模式...', 'info');
 
             const writer = this.serial_get_writer();
             const command = this.COMMANDS.CONFIG_MODE_ENABLE + '\n';
             const buffer = new TextEncoder().encode(command);
             await writer.write(buffer);
 
-            const response = await this.serial_wait_for_data(500, [this.RESPONSES.CONFIG_MODE_ENABLED]);
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.CONFIG_MODE_ENABLED_SUCCESS]);
 
-            if (response === this.RESPONSES.CONFIG_MODE_ENABLED) {
-                this.isConnected = true;
-                this.showStatus('参数设置模式已成功启用', 'success');
+            if (response === this.RESPONSES.CONFIG_MODE_ENABLED_SUCCESS) {
+                this.is_connected = true;
+                this.show_status('参数设置模式已成功启用', 'success');
 
                 // 启动心跳定时器，每2秒发送一次心跳包
                 this.heartbeatTimer = setInterval(() => this.config_send_heartbeat(), this.HEARTBEAT_INTERVAL);
@@ -571,7 +593,7 @@ class SerialAssistant {
             }
         } catch (error) {
             this.writer = this.serial_release_resource(this.writer);
-            this.showStatus(`启用参数设置模式失败: ${error.message}`, 'error');
+            this.show_status(`启用参数设置模式失败: ${error.message}`, 'error');
         }
     }
 
@@ -580,25 +602,28 @@ class SerialAssistant {
      */
     async config_load_settings() {
         try {
-            this.showStatus('正在加载参数设置...', 'info');
+            this.show_status('正在加载参数设置...', 'info');
 
             const writer = this.serial_get_writer();
             const command = this.COMMANDS.LOAD_SETTINGS + '\n';
             const buffer = new TextEncoder().encode(command);
             await writer.write(buffer);
 
-            const response = await this.serial_wait_for_data(500, [this.RESPONSES.LOAD_SETTINGS]);
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.LOAD_SETTINGS_SUCCESS]);
 
-            if (response === this.RESPONSES.LOAD_SETTINGS) {
-                this.showStatus('参数设置已加载', 'success');
+            if (response === this.RESPONSES.LOAD_SETTINGS_SUCCESS) {
+                this.show_status('参数设置已加载', 'success');
             } else {
                 throw new Error(`意外响应: ${response}`);
             }
         } catch (error) {
-            this.showStatus(`加载参数设置失败: ${error.message}`, 'error');
+            this.show_status(`加载参数设置失败: ${error.message}`, 'error');
         }
     }
 
+    /**
+     * 保存参数设置
+     */
     async config_save_settings() {
         try {
             const writer = this.serial_get_writer();
@@ -635,8 +660,7 @@ class SerialAssistant {
             offset += 2;
 
             // reserved字段：使用缓冲区剩余的大小填充
-            const max_offset = buffer.byteLength;
-            const reserved_size = max_offset - offset;
+            const reserved_size = buffer.byteLength - offset;
             for (let i = 0; i < reserved_size; i++) {
                 view.setUint8(offset + i, 0);
             }
@@ -657,16 +681,18 @@ class SerialAssistant {
             // 一次性发送完整命令
             await writer.write(fullBuffer);
 
-            const response = await this.serial_wait_for_data(500, [this.RESPONSES.SAVE_SETTINGS]);
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.SAVE_SETTINGS_SUCCESS]);
 
-            if (response === this.RESPONSES.SAVE_SETTINGS) {
-                this.showStatus('设置已保存到设备', 'success');
+            if (response === this.RESPONSES.SAVE_SETTINGS_SUCCESS) {
+                this.show_status('设置已保存到设备', 'success');
+            } else if (response === this.RESPONSES.SAVE_SETTINGS_FAILED) {
+                this.showCustomAlert('保存设置失败', "检查参数设置是否正确");
             } else {
                 throw new Error(`意外响应: ${response}`);
             }
         } catch (error) {
             this.writer = this.serial_release_resource(this.writer);
-            this.showStatus(`保存设置失败: ${error.message}`, 'error');
+            this.show_status(`保存设置失败: ${error.message}`, 'error');
         }
     }
 
@@ -675,17 +701,17 @@ class SerialAssistant {
      */
     async config_reset_settings() {
         try {
-            this.showStatus('正在重置参数设置...', 'info');
+            this.show_status('正在重置参数设置...', 'info');
 
             const writer = this.serial_get_writer();
             const command = this.COMMANDS.RESET_SETTINGS + '\n';
             const buffer = new TextEncoder().encode(command);
             await writer.write(buffer);
 
-            const response = await this.serial_wait_for_data(500, [this.RESPONSES.RESET_SETTINGS]);
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.RESET_SETTINGS_SUCCESS]);
 
-            if (response === this.RESPONSES.RESET_SETTINGS) {
-                this.showStatus('参数设置已重置为默认值', 'success');
+            if (response === this.RESPONSES.RESET_SETTINGS_SUCCESS) {
+                this.show_status('参数设置已重置为默认值', 'success');
 
                 // 加载参数设置
                 await this.config_load_settings();
@@ -693,7 +719,7 @@ class SerialAssistant {
                 throw new Error(`意外响应: ${response}`);
             }
         } catch (error) {
-            this.showStatus(`重置参数设置失败: ${error.message}`, 'error');
+            this.show_status(`重置参数设置失败: ${error.message}`, 'error');
         }
     }
 
@@ -702,9 +728,7 @@ class SerialAssistant {
      */
     async config_send_heartbeat() {
         try {
-            if (!this.isConnected) {
-                return;
-            }
+            if (!this.is_connected) return;
 
             // 发送心跳请求
             const writer = this.serial_get_writer();
@@ -714,8 +738,6 @@ class SerialAssistant {
 
             // 更新心跳状态
             this.lastHeartbeatSent = Date.now();
-
-            console.log('心跳请求已发送');
         } catch (error) {
             console.error('发送心跳请求失败:', error);
         }
@@ -741,7 +763,8 @@ class SerialAssistant {
      * 包括连接按钮文本、指示灯颜色、遮罩层显示和功能按钮状态
      */
     update_ui_states() {
-        const isConnected = this.isConnected;
+        const isConnected = this.is_connected;
+
         this.connectToggleBtn.textContent = isConnected ? '断开设备' : '连接设备';
         this.connectToggleBtn.className = isConnected ? 'secondary-btn' : 'primary-btn';
 
@@ -774,7 +797,7 @@ class SerialAssistant {
      * @param {string} message - 状态消息内容
      * @param {string} type - 状态类型，可选值：'info'（默认）、'success'、'error'
      */
-    showStatus(message, type = 'info') {
+    show_status(message, type = 'info') {
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
 
