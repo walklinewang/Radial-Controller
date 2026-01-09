@@ -6,9 +6,9 @@
 */
 #include "MyWS2812.h"
 
-static const uint8_t BRIGHT_LEVELS[5] = {15, 9, 5, 3, 0};
+static const uint8_t BRIGHT_LEVELS[5] = {0, 3, 5, 9, 15};
 static ws2812_t ws2812;
-static uint8_t brightness = 1;
+static uint8_t brightness = 3;
 
 /**
  * @brief 初始化 WS2812 LED 驱动

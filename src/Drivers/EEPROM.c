@@ -71,7 +71,7 @@ eeprom_status_t EEPROM_Reset() {
     config.revision = CURRENT_CONFIG_REVISION; // 默认修订号
     config.led_count = 4;                      // 默认LED数量
     config.color_order = 0;                    // 默认颜色顺序（GRB）
-    config.brightness = 1;                     // 默认亮度等级
+    config.brightness = 3;                     // 默认亮度等级
     config.effect_mode = 0;                    // 默认灯效模式
     config.effect_tick = 50;   // 默认灯效循环周期（50ms）
     config.rotate_cw = 10;     // 默认顺时针旋转角度
