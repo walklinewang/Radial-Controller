@@ -7,11 +7,40 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #7fbd4b 100%);
-    color: #333;
+    /* 科技感深色背景 - 明亮清晰版本 */
+    background: 
+        /* 科技感网格纹理 - 刻线效果 */
+        /* 网格深色阴影（凹槽效果） */
+        linear-gradient(90deg, rgba(0, 0, 0, 0.3) 1px, transparent 1px),
+        linear-gradient(rgba(0, 0, 0, 0.3) 1px, transparent 1px),
+        /* 网格浅色高光（凸起效果） */
+        linear-gradient(90deg, transparent 1px, rgba(255, 255, 255, 0.05) 2px, transparent 2px),
+        linear-gradient(transparent 1px, rgba(255, 255, 255, 0.05) 2px, transparent 2px),
+        
+        /* 主渐变 - 更深色 */
+        linear-gradient(135deg, 
+            #1e293b 0%, 
+            #2d3748 25%, 
+            #4a5568 50%, 
+            #2d3748 75%, 
+            #1e293b 100%),
+        
+        /* 发光圆环效果 - 更柔和 */
+        radial-gradient(circle at 30% 20%, rgba(138, 43, 226, 0.3) 0px, transparent 180px),
+        radial-gradient(circle at 70% 80%, rgba(0, 255, 255, 0.2) 0px, transparent 220px);
+    
+    background-size: 
+        50px 50px, 50px 50px, /* 网格深色阴影 */
+        50px 50px, 50px 50px, /* 网格浅色高光 */
+        100% 100%, /* 主渐变 */
+        100% 100%, 100% 100%; /* 发光圆环 */
+    
+    color: #f7fafc;
     line-height: 1.6;
     min-height: 100vh;
     min-width: 400px;
+    /* 添加平滑过渡效果 */
+    transition: all 0.3s ease;
 }
 
 .container {
@@ -50,6 +79,7 @@ header h1 {
 /* 连接状态区域样式 */
 .connection-section {
     padding: 14px;
+    margin: 0 260px;
 }
 
 .connection-status {
@@ -67,7 +97,7 @@ header h1 {
     color: #4a5568;
 }
 
-.status-dot {
+.status-icon {
     width: 12px;
     height: 12px;
     border-radius: 50%;
@@ -75,7 +105,7 @@ header h1 {
     transition: background-color 0.3s ease;
 }
 
-.status-dot.connected {
+.status-icon.connected {
     background-color: #38a169;
 }
 
@@ -110,10 +140,10 @@ header h1 {
 .config-group-title {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #4a5568;
+    color: #e2e8f0;
     /* margin: 0 0 15px 0; */
     padding-bottom: 8px;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid #4a5568;
     grid-column: 1 / -1;
 }
 
@@ -142,7 +172,7 @@ header h1 {
 
 .config-item label {
     font-weight: 500;
-    color: #4a5568;
+    color: #cbd5e0;
     font-size: 0.9rem;
 }
 
@@ -150,10 +180,11 @@ header h1 {
 .config-item input[type="text"],
 .config-item select {
     padding: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #4a5568;
     border-radius: 6px;
     font-size: 0.9rem;
-    background: white;
+    background: #1a202c;
+    color: #e2e8f0;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -161,8 +192,31 @@ header h1 {
 .config-item input[type="text"]:focus,
 .config-item select:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 禁用控件样式 */
+.config-item input.disabled-control,
+.config-item select.disabled-control,
+.slider-container input.disabled-control {
+    opacity: 0.6;
+    cursor: not-allowed;
+    border-color: #e2e8f0;
+    background-color: #f7fafc;
+}
+
+/* 禁用的滑块数值显示样式 */
+.disabled-value {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.config-item input.disabled-control:focus,
+.config-item select.disabled-control:focus,
+.slider-container input.disabled-control:focus {
+    border-color: #e2e8f0;
+    box-shadow: none;
 }
 
 /* 滑动条样式 */
@@ -188,7 +242,7 @@ header h1 {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #667eea;
+    background: #3b82f6;
     cursor: pointer;
     transition: background 0.3s ease, transform 0.2s ease;
     border: none;
@@ -198,7 +252,7 @@ header h1 {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #667eea;
+    background: #3b82f6;
     cursor: pointer;
     border: none;
     transition: background 0.3s ease, transform 0.2s ease;
@@ -208,24 +262,24 @@ header h1 {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #667eea;
+    background: #3b82f6;
     cursor: pointer;
     border: none;
     transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .slider-container input[type="range"]::-webkit-slider-thumb:hover {
-    background: #5a67d8;
+    background: #2563eb;
     transform: scale(1.1);
 }
 
 .slider-container input[type="range"]::-moz-range-thumb:hover {
-    background: #5a67d8;
+    background: #2563eb;
     transform: scale(1.1);
 }
 
 .slider-container input[type="range"]::-ms-thumb:hover {
-    background: #5a67d8;
+    background: #2563eb;
     transform: scale(1.1);
 }
 
@@ -242,8 +296,8 @@ header h1 {
 
 .slider-value:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* 版本信息区域样式 */
@@ -263,12 +317,12 @@ header h1 {
 .version-value {
     font-family: monospace;
     font-size: 1rem;
-    color: #2b6cb0;
+    color: #0080ff;
     font-weight: 600;
     padding: 6px 12px;
-    background: white;
+    background: #1a202c;
     border-radius: 6px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #4a5568;
 }
 
 /* 功能按钮样式 */
@@ -301,7 +355,7 @@ header h1 {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
     z-index: 999;
     display: flex;
@@ -314,9 +368,10 @@ header h1 {
 .overlay-content {
     text-align: center;
     padding: 40px;
-    background: white;
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(10px);
     border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     max-width: 400px;
 }
 
@@ -324,28 +379,30 @@ header h1 {
     font-size: 4rem;
     margin-bottom: 20px;
     opacity: 0.8;
+    color: #3b82f6;
 }
 
 .overlay-content h3 {
-    color: #4a5568;
+    color: #e2e8f0;
     font-size: 1.5rem;
     margin-bottom: 10px;
     font-weight: 600;
 }
 
 .overlay-content p {
-    color: #718096;
+    color: #cbd5e0;
     font-size: 1rem;
     margin-bottom: 0;
 }
 
 /* 通用部分样式 */
 section {
-    background: white;
+    background: rgba(45, 55, 72, 0.85);
+    backdrop-filter: blur(10px);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -355,11 +412,11 @@ section:hover {
 }
 
 section h2 {
-    color: #4a5568;
+    color: #e2e8f0;
     font-size: 1.5rem;
     margin-bottom: 15px;
     font-weight: 600;
-    /* border-bottom: 2px solid #e2e8f0; */
+    /* border-bottom: 2px solid #4a5568; */
     padding-bottom: 10px;
 }
 
@@ -377,23 +434,23 @@ button {
 }
 
 .primary-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
     color: white;
 }
 
 .primary-btn:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .secondary-btn {
-    background: #e2e8f0;
-    color: #4a5568;
-    border: 1px solid #cbd5e0;
+    background: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
 }
 
 .secondary-btn:hover:not(:disabled) {
-    background: #cbd5e0;
+    background: #4a5568;
     transform: translateY(-1px);
 }
 
@@ -467,26 +524,27 @@ section {
 
 .custom-alert-content {
     position: relative;
-    background-color: white;
+    background-color: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(10px);
     border-radius: 16px;
     padding: 20px;
     max-width: 500px;
     /* width: 90%; */
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     animation: fadeIn 0.3s ease-out;
 }
 
 .alert-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #4a5568;
+    color: #e2e8f0;
     margin-bottom: 15px;
     text-align: center;
 }
 
 .alert-message {
     font-size: 1.1rem;
-    color: #718096;
+    color: #cbd5e0;
     margin-bottom: 25px;
     text-align: center;
     line-height: 1.6;
@@ -502,7 +560,7 @@ section {
     padding: 12px 30px;
     font-size: 1rem;
     font-weight: 600;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -513,5 +571,5 @@ section {
 
 #alert-ok:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
