@@ -140,7 +140,7 @@ class SerialAssistant {
             // 创建滑块容器
             const sliderContainer = document.createElement('div');
             sliderContainer.className = 'slider-container';
-            
+
             // 创建滑块
             input = document.createElement('input');
             input.type = 'range';
@@ -150,14 +150,14 @@ class SerialAssistant {
             input.min = param.min;
             input.max = param.max;
             input.step = param.step || '1';
-            
+
             // 创建数值显示
             const valueDisplay = document.createElement('span');
             valueDisplay.className = 'slider-value';
             // 考虑显示偏移量（用于亮度等级等需要显示值与实际存储值不同的情况）
             const displayValue = param.displayValueOffset ? param.value + param.displayValueOffset : param.value;
             valueDisplay.textContent = displayValue;
-            
+
             sliderContainer.appendChild(input);
             sliderContainer.appendChild(valueDisplay);
             container.appendChild(sliderContainer);
@@ -187,7 +187,7 @@ class SerialAssistant {
                 e.target.value = value;
             });
         }
-        
+
         // 滑块仍然需要实时更新显示
         if (param.type === 'slider') {
             input.addEventListener('input', (e) => {
@@ -203,29 +203,29 @@ class SerialAssistant {
                 this.configParams[paramKey].value = value;
             });
         }
-        
+
         // 在输入完成（失去焦点）时进行范围验证
         input.addEventListener('blur', (e) => {
             let value = e.target.value;
-            
+
             // 如果是数字类型，确保值在有效范围内
             if (param.type === 'number') {
                 value = parseInt(value);
-                
+
                 // 验证最小值
                 if (param.min !== undefined && (isNaN(value) || value < param.min)) {
                     value = param.min;
                     e.target.value = value;
                     this.show_status(`参数 ${param.label} 最小值为 ${param.min}`, 'warning');
                 }
-                
+
                 // 验证最大值
                 if (param.max !== undefined && value > param.max) {
                     value = param.max;
                     e.target.value = value;
                     this.show_status(`参数 ${param.label} 最大值为 ${param.max}`, 'warning');
                 }
-                
+
                 // 更新参数值
                 this.configParams[paramKey].value = value;
             }
@@ -671,7 +671,7 @@ class SerialAssistant {
             if (this.configParams[paramKey] !== undefined) {
                 let value = config[paramKey];
                 const param = this.configParams[paramKey];
-                
+
                 // 验证并修正值
                 if (param.type === 'number') {
                     if (param.min !== undefined && value < param.min) {
@@ -681,7 +681,7 @@ class SerialAssistant {
                         value = param.max;
                     }
                 }
-                
+
                 this.configParams[paramKey].value = value;
             }
         }
@@ -769,18 +769,18 @@ class SerialAssistant {
      */
     config_validate_all_params() {
         let isValid = true;
-        
+
         // 遍历所有参数
         for (const [paramKey, param] of Object.entries(this.configParams)) {
             if (param.type === 'number' || param.type === 'slider') {
                 const value = param.value;
-                
+
                 // 验证最小值
                 if (param.min !== undefined && (isNaN(value) || value < param.min)) {
                     this.show_status(`参数 ${param.label} 最小值为 ${param.min}`, 'warning');
                     isValid = false;
                 }
-                
+
                 // 验证最大值
                 if (param.max !== undefined && value > param.max) {
                     this.show_status(`参数 ${param.label} 最大值为 ${param.max}`, 'warning');
@@ -788,7 +788,7 @@ class SerialAssistant {
                 }
             }
         }
-        
+
         return isValid;
     }
 
@@ -801,7 +801,7 @@ class SerialAssistant {
             if (!this.config_validate_all_params()) {
                 return; // 参数无效，不执行保存操作
             }
-            
+
             const writer = this.serial_get_writer();
 
             // 创建配置数据缓冲区（共30字节，不含version和revision）
@@ -934,7 +934,7 @@ class SerialAssistant {
         const control = document.getElementById(`config-${key}`);
         if (control) {
             control.value = value;
-            
+
             // 如果是滑块类型，同时更新数值显示
             if (control.type === 'range') {
                 const valueDisplay = control.nextElementSibling;
