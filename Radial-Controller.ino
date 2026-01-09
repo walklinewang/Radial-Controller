@@ -44,6 +44,18 @@ bool is_config_mode = false;
 // 心跳检测相关变量
 uint32_t heartbeat_last_received = 0; // 最后一次收到心跳的时间戳
 
+/**
+ * @brief 配置更新后执行的初始化操作
+ */
+void UpdateConfigAfterChange(void) {
+    // 设置 EC11 编码器转动一齿触发次数
+    EC11_SetStepPerTeeth(EEPROM_GetStepPerTeeth());
+
+    // 重新初始化 WS2812 LED
+    WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
+    WS2812_SetBrightness(EEPROM_GetBrightness());
+}
+
 void setup() {
     USBInit();
 
@@ -53,9 +65,8 @@ void setup() {
     // 初始化 EC11 编码器
     EC11_Init(EC11_PIN_A, EC11_PIN_B, EC11_PIN_K);
 
-    // 初始化 WS2812 LED
-    WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
-    WS2812_SetBrightness(EEPROM_GetBrightness());
+    // 执行配置初始化
+    UpdateConfigAfterChange();
 }
 
 void loop() {
@@ -228,6 +239,9 @@ void process_command(unsigned char *command) {
 
         // 保存配置到EEPROM
         if (EEPROM_SaveConfig() == EEPROM_STATUS_OK) {
+            // 执行配置更新后的初始化操作
+            UpdateConfigAfterChange();
+
             USBSerial_print(CMD_CONFIG_SAVE_SETTINGS);
             USBSerial_println(CMD_SUCCESS);
             USBSerial_flush();
@@ -241,9 +255,8 @@ void process_command(unsigned char *command) {
         EEPROM_Reset();
         EEPROM_SaveConfig();
 
-        // 重新初始化WS2812
-        WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
-        WS2812_SetBrightness(EEPROM_GetBrightness());
+        // 执行配置更新后的初始化操作
+        UpdateConfigAfterChange();
 
         USBSerial_print(CMD_CONFIG_RESET_SETTINGS);
         USBSerial_println(CMD_SUCCESS);

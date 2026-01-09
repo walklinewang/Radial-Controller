@@ -39,6 +39,7 @@ typedef struct {
     ec11_direction_t direction; // 当前旋转方向
     ec11_key_state_t key_state; // 当前按键状态
     bool key_changed;           // 按键状态是否变化
+    uint8_t step_per_teeth;     // 转动一齿触发次数
 } ec11_t;
 
 /**
@@ -71,5 +72,11 @@ ec11_key_state_t EC11_GetKeyState(void);
  * @return 是否变化
  */
 bool EC11_IsKeyChanged(void);
+
+/**
+ * @brief 设置 EC11 编码器触发动作的次数
+ * @param step 每转动一齿触发动作次数
+ */
+void EC11_SetStepPerTeeth(uint8_t step);
 
 #endif /* __EC11_H__ */

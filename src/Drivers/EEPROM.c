@@ -73,9 +73,10 @@ eeprom_status_t EEPROM_Reset() {
     config.color_order = 0;                    // 默认颜色顺序（GRB）
     config.brightness = 1;                     // 默认亮度等级
     config.effect_mode = 0;                    // 默认灯效模式
-    config.effect_tick = 50; // 默认灯效循环周期（50ms）
-    config.rotate_cw = 10;   // 默认顺时针旋转角度
-    config.rotate_ccw = -10; // 默认逆时针旋转角度
+    config.effect_tick = 50;   // 默认灯效循环周期（50ms）
+    config.rotate_cw = 10;     // 默认顺时针旋转角度
+    config.rotate_ccw = -10;   // 默认逆时针旋转角度
+    config.step_per_teeth = 2; // 默认转动一齿触发次数
 
     // 初始化预留空间为 0
     for (uint8_t i = 0; i < sizeof(config.reserved); i++) {
@@ -97,6 +98,11 @@ eeprom_status_t EEPROM_Validate() {
 
     // 检查 LED 数量是否在有效范围内
     if (config.led_count < 1 || config.led_count > 10) {
+        return EEPROM_STATUS_INVALID_PARAM;
+    }
+
+    // 检查转动一齿触发次数是否在有效范围内
+    if (config.step_per_teeth != 1 && config.step_per_teeth != 2) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -270,5 +276,26 @@ eeprom_status_t EEPROM_SetRotateCCW(int16_t degrees) {
     }
 
     config.rotate_ccw = degrees;
+    return EEPROM_STATUS_OK;
+}
+
+/**
+ * @brief 获取触发动作的次数
+ * @return EC11 编码器每转动一齿触发动作次数
+ */
+uint8_t EEPROM_GetStepPerTeeth(void) { return config.step_per_teeth; }
+
+/**
+ * @brief 设置触发动作的次数
+ * @param step EC11 编码器每转动一齿触发动作次数
+ * @return 操作状态
+ */
+eeprom_status_t EEPROM_SetStepPerTeeth(uint8_t step) {
+    // 验证参数有效性
+    if (step != 1 && step != 2) {
+        return EEPROM_STATUS_INVALID_PARAM;
+    }
+
+    config.step_per_teeth = step;
     return EEPROM_STATUS_OK;
 }

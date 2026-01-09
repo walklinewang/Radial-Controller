@@ -42,10 +42,11 @@ typedef struct {
     uint8_t effect_mode;  // LED 灯效模式 (5)
     uint16_t effect_tick; // LED 灯效循环周期（ms） (6-7)
 
-    int16_t rotate_cw;  // 顺时针旋转角度 (8-9)
-    int16_t rotate_ccw; // 逆时针旋转角度 (10-11)
+    int16_t rotate_cw;      // 顺时针旋转角度 (8-9)
+    int16_t rotate_ccw;     // 逆时针旋转角度 (10-11)
+    uint8_t step_per_teeth; // 转动一齿触发次数 (12)
 
-    uint8_t reserved[20]; // 预留空间，用于未来扩展 (12-31)
+    uint8_t reserved[19]; // 预留空间，用于未来扩展 (13-31)
 } config_t;               /* 共 32 字节*/
 
 /**
@@ -180,5 +181,18 @@ int16_t EEPROM_GetRotateCCW(void);
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetRotateCCW(int16_t degrees);
+
+/**
+ * @brief 获取触发动作的次数
+ * @return EC11 编码器每转动一齿触发动作次数
+ */
+uint8_t EEPROM_GetStepPerTeeth(void);
+
+/**
+ * @brief 设置触发动作的次数
+ * @param step EC11 编码器每转动一齿触发动作次数
+ * @return 操作状态
+ */
+eeprom_status_t EEPROM_SetStepPerTeeth(uint8_t step);
 
 #endif /* __EEPROM_H__ */

@@ -47,7 +47,8 @@ class SerialAssistant {
             effect_mode: { label: 'LED灯效模式', type: 'number', min: 0, max: 1, value: 0 },
             effect_tick: { label: 'LED灯效循环周期(ms)', type: 'number', min: 20, max: 500, value: 50 },
             rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
-            rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 }
+            rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 },
+            step_per_teeth: { label: '每转动一齿触发动作次数', type: 'select', options: [{ value: 1, label: '1' }, { value: 2, label: '2' }], value: 2 }
         };
 
         this.init_elements();
@@ -533,7 +534,8 @@ class SerialAssistant {
             effect_tick: view.getUint16(6, true), // true表示小端字节序
             rotate_cw: view.getInt16(8, true),
             rotate_ccw: view.getInt16(10, true),
-            // reserved字段从12-31，共20字节，暂不处理
+            step_per_teeth: view.getUint8(12),
+            // reserved字段从13-31，共20字节，暂不处理
         };
 
         // 更新参数设置
@@ -544,6 +546,7 @@ class SerialAssistant {
         this.configParams.effect_tick.value = config.effect_tick;
         this.configParams.rotate_cw.value = config.rotate_cw;
         this.configParams.rotate_ccw.value = config.rotate_ccw;
+        this.configParams.step_per_teeth.value = config.step_per_teeth;
 
         // 更新UI控件
         this.update_config_controls('led_count', config.led_count);
@@ -553,6 +556,7 @@ class SerialAssistant {
         this.update_config_controls('effect_tick', config.effect_tick);
         this.update_config_controls('rotate_cw', config.rotate_cw);
         this.update_config_controls('rotate_ccw', config.rotate_ccw);
+        this.update_config_controls('step_per_teeth', config.step_per_teeth);
 
         // 显示固件版本
         if (this.firmwareVersion) {
@@ -658,6 +662,9 @@ class SerialAssistant {
             // rotate_ccw (2字节，小端)
             view.setInt16(offset, this.configParams.rotate_ccw.value, true);
             offset += 2;
+
+            // step_per_teeth (1字节)
+            view.setUint8(offset++, this.configParams.step_per_teeth.value);
 
             // reserved字段：使用缓冲区剩余的大小填充
             const reserved_size = buffer.byteLength - offset;
