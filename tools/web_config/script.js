@@ -41,10 +41,10 @@ class SerialAssistant {
 
         // 设置参数
         this.configParams = {
-            led_count: { label: 'LED灯珠数量', type: 'number', min: 1, max: 10, value: 4 },
+            led_count: { label: 'LED灯珠数量', type: 'slider', min: 1, max: 10, step: 1, value: 4 },
+            brightness: { label: '亮度等级', type: 'slider', min: 0, max: 4, step: 1, value: 1, displayValueOffset: 1 },
             color_order: { label: 'LED颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB' }, { value: 1, label: 'RGB' }], value: 0 },
-            brightness: { label: '亮度等级', type: 'number', min: 0, max: 4, value: 1 },
-            effect_mode: { label: 'LED灯效模式', type: 'number', min: 0, max: 1, value: 0 },
+            effect_mode: { label: 'LED灯效模式', type: 'select', options: [{ value: 0, label: '默认' }], value: 0 },
             effect_tick: { label: 'LED灯效循环周期(ms)', type: 'number', min: 20, max: 500, value: 50 },
             rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
             rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 },
@@ -109,6 +109,134 @@ class SerialAssistant {
     }
 
     /**
+     * 创建配置输入控件
+     * @param {string} paramKey - 参数键名
+     * @param {object} param - 参数配置对象
+     * @param {HTMLElement} container - 容器元素
+     */
+    __create_config_input(paramKey, param, container) {
+        const label = document.createElement('label');
+        label.textContent = param.label;
+        label.setAttribute('for', `config-${paramKey}`);
+        container.appendChild(label);
+
+        let input;
+        if (param.type === 'select') {
+            input = document.createElement('select');
+            input.id = `config-${paramKey}`;
+            input.name = paramKey;
+
+            param.options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.value;
+                opt.textContent = option.label;
+                // 确保类型匹配，将option.value转换为数字进行比较
+                if (parseInt(option.value) === param.value) {
+                    opt.selected = true;
+                }
+                input.appendChild(opt);
+            });
+        } else if (param.type === 'slider') {
+            // 创建滑块容器
+            const sliderContainer = document.createElement('div');
+            sliderContainer.className = 'slider-container';
+            
+            // 创建滑块
+            input = document.createElement('input');
+            input.type = 'range';
+            input.id = `config-${paramKey}`;
+            input.name = paramKey;
+            input.value = param.value;
+            input.min = param.min;
+            input.max = param.max;
+            input.step = param.step || '1';
+            
+            // 创建数值显示
+            const valueDisplay = document.createElement('span');
+            valueDisplay.className = 'slider-value';
+            // 考虑显示偏移量（用于亮度等级等需要显示值与实际存储值不同的情况）
+            const displayValue = param.displayValueOffset ? param.value + param.displayValueOffset : param.value;
+            valueDisplay.textContent = displayValue;
+            
+            sliderContainer.appendChild(input);
+            sliderContainer.appendChild(valueDisplay);
+            container.appendChild(sliderContainer);
+        } else {
+            input = document.createElement('input');
+            input.type = param.type;
+            input.id = `config-${paramKey}`;
+            input.name = paramKey;
+            input.value = param.value;
+            input.min = param.min;
+            input.max = param.max;
+            if (param.type === 'number') {
+                input.step = '1';
+            }
+        }
+
+        // 实时过滤非法字符（仅在输入时进行格式控制，不进行范围验证）
+        if (param.type === 'number') {
+            input.addEventListener('input', (e) => {
+                let value = e.target.value;
+                // 只允许输入数字和负号（仅在开头允许一个负号）
+                value = value.replace(/[^0-9-]/g, '');
+                // 确保负号只在开头出现一次
+                if (value.indexOf('-') > 0) {
+                    value = value.replace(/-/g, '');
+                }
+                e.target.value = value;
+            });
+        }
+        
+        // 滑块仍然需要实时更新显示
+        if (param.type === 'slider') {
+            input.addEventListener('input', (e) => {
+                let value = parseInt(e.target.value);
+                // 更新滑块的数值显示
+                const valueDisplay = e.target.nextElementSibling;
+                if (valueDisplay && valueDisplay.className === 'slider-value') {
+                    // 考虑显示偏移量
+                    const displayValue = param.displayValueOffset ? value + param.displayValueOffset : value;
+                    valueDisplay.textContent = displayValue;
+                }
+                // 更新参数值
+                this.configParams[paramKey].value = value;
+            });
+        }
+        
+        // 在输入完成（失去焦点）时进行范围验证
+        input.addEventListener('blur', (e) => {
+            let value = e.target.value;
+            
+            // 如果是数字类型，确保值在有效范围内
+            if (param.type === 'number') {
+                value = parseInt(value);
+                
+                // 验证最小值
+                if (param.min !== undefined && (isNaN(value) || value < param.min)) {
+                    value = param.min;
+                    e.target.value = value;
+                    this.show_status(`参数 ${param.label} 最小值为 ${param.min}`, 'warning');
+                }
+                
+                // 验证最大值
+                if (param.max !== undefined && value > param.max) {
+                    value = param.max;
+                    e.target.value = value;
+                    this.show_status(`参数 ${param.label} 最大值为 ${param.max}`, 'warning');
+                }
+                
+                // 更新参数值
+                this.configParams[paramKey].value = value;
+            }
+        });
+
+        if (param.type !== 'slider') {
+            container.appendChild(input);
+        }
+    }
+
+    /**
      * 生成参数设置的HTML控件
      */
     generate_config_controls() {
@@ -116,51 +244,51 @@ class SerialAssistant {
 
         this.configContainer.innerHTML = '';
 
-        Object.keys(this.configParams).forEach(paramKey => {
+        // 分组定义参数
+        const ledParams = ['led_count', 'brightness', 'color_order', 'effect_mode', 'effect_tick'];
+        const encoderParams = ['rotate_cw', 'rotate_ccw', 'step_per_teeth'];
+
+        // 创建LED相关参数容器
+        const ledContainer = document.createElement('div');
+        ledContainer.className = 'config-group led-group';
+
+        // 添加LED参数组标题
+        const ledTitle = document.createElement('h3');
+        ledTitle.className = 'config-group-title';
+        ledTitle.textContent = 'LED设置';
+        ledContainer.appendChild(ledTitle);
+
+        // 创建编码器相关参数容器
+        const encoderContainer = document.createElement('div');
+        encoderContainer.className = 'config-group encoder-group';
+
+        // 添加编码器参数组标题
+        const encoderTitle = document.createElement('h3');
+        encoderTitle.className = 'config-group-title';
+        encoderTitle.textContent = '编码器设置';
+        encoderContainer.appendChild(encoderTitle);
+
+        // 添加LED相关参数
+        ledParams.forEach(paramKey => {
             const param = this.configParams[paramKey];
             const container = document.createElement('div');
             container.className = 'config-item';
-
-            const label = document.createElement('label');
-            label.textContent = param.label;
-            label.setAttribute('for', `config-${paramKey}`);
-            container.appendChild(label);
-
-            let input;
-            if (param.type === 'select') {
-                input = document.createElement('select');
-                input.id = `config-${paramKey}`;
-                input.name = paramKey;
-
-                param.options.forEach(option => {
-                    const opt = document.createElement('option');
-                    opt.value = option.value;
-                    opt.textContent = option.label;
-                    if (option.value === param.value) {
-                        opt.selected = true;
-                    }
-                    input.appendChild(opt);
-                });
-            } else {
-                input = document.createElement('input');
-                input.type = param.type;
-                input.id = `config-${paramKey}`;
-                input.name = paramKey;
-                input.value = param.value;
-                input.min = param.min;
-                input.max = param.max;
-                if (param.type === 'number') {
-                    input.step = '1';
-                }
-            }
-
-            input.addEventListener('input', (e) => {
-                this.configParams[paramKey].value = param.type === 'number' ? parseInt(e.target.value) : e.target.value;
-            });
-
-            container.appendChild(input);
-            this.configContainer.appendChild(container);
+            this.__create_config_input(paramKey, param, container);
+            ledContainer.appendChild(container);
         });
+
+        // 添加编码器相关参数
+        encoderParams.forEach(paramKey => {
+            const param = this.configParams[paramKey];
+            const container = document.createElement('div');
+            container.className = 'config-item';
+            this.__create_config_input(paramKey, param, container);
+            encoderContainer.appendChild(container);
+        });
+
+        // 将所有容器添加到主容器
+        this.configContainer.appendChild(ledContainer);
+        this.configContainer.appendChild(encoderContainer);
     }
     // #endregion 页面初始化相关方法
 
@@ -538,25 +666,35 @@ class SerialAssistant {
             // reserved字段从13-31，共20字节，暂不处理
         };
 
-        // 更新参数设置
-        this.configParams.led_count.value = config.led_count;
-        this.configParams.color_order.value = config.color_order;
-        this.configParams.brightness.value = config.brightness;
-        this.configParams.effect_mode.value = config.effect_mode;
-        this.configParams.effect_tick.value = config.effect_tick;
-        this.configParams.rotate_cw.value = config.rotate_cw;
-        this.configParams.rotate_ccw.value = config.rotate_ccw;
-        this.configParams.step_per_teeth.value = config.step_per_teeth;
+        // 更新参数设置（带验证）
+        for (const paramKey in config) {
+            if (this.configParams[paramKey] !== undefined) {
+                let value = config[paramKey];
+                const param = this.configParams[paramKey];
+                
+                // 验证并修正值
+                if (param.type === 'number') {
+                    if (param.min !== undefined && value < param.min) {
+                        value = param.min;
+                    }
+                    if (param.max !== undefined && value > param.max) {
+                        value = param.max;
+                    }
+                }
+                
+                this.configParams[paramKey].value = value;
+            }
+        }
 
         // 更新UI控件
-        this.update_config_controls('led_count', config.led_count);
-        this.update_config_controls('color_order', config.color_order);
-        this.update_config_controls('brightness', config.brightness);
-        this.update_config_controls('effect_mode', config.effect_mode);
-        this.update_config_controls('effect_tick', config.effect_tick);
-        this.update_config_controls('rotate_cw', config.rotate_cw);
-        this.update_config_controls('rotate_ccw', config.rotate_ccw);
-        this.update_config_controls('step_per_teeth', config.step_per_teeth);
+        this.update_config_controls('led_count', this.configParams.led_count.value);
+        this.update_config_controls('color_order', this.configParams.color_order.value);
+        this.update_config_controls('brightness', this.configParams.brightness.value);
+        this.update_config_controls('effect_mode', this.configParams.effect_mode.value);
+        this.update_config_controls('effect_tick', this.configParams.effect_tick.value);
+        this.update_config_controls('rotate_cw', this.configParams.rotate_cw.value);
+        this.update_config_controls('rotate_ccw', this.configParams.rotate_ccw.value);
+        this.update_config_controls('step_per_teeth', this.configParams.step_per_teeth.value);
 
         // 显示固件版本
         if (this.firmwareVersion) {
@@ -626,10 +764,44 @@ class SerialAssistant {
     }
 
     /**
+     * 验证所有参数是否在有效范围内
+     * @returns {boolean} 所有参数是否有效
+     */
+    config_validate_all_params() {
+        let isValid = true;
+        
+        // 遍历所有参数
+        for (const [paramKey, param] of Object.entries(this.configParams)) {
+            if (param.type === 'number' || param.type === 'slider') {
+                const value = param.value;
+                
+                // 验证最小值
+                if (param.min !== undefined && (isNaN(value) || value < param.min)) {
+                    this.show_status(`参数 ${param.label} 最小值为 ${param.min}`, 'warning');
+                    isValid = false;
+                }
+                
+                // 验证最大值
+                if (param.max !== undefined && value > param.max) {
+                    this.show_status(`参数 ${param.label} 最大值为 ${param.max}`, 'warning');
+                    isValid = false;
+                }
+            }
+        }
+        
+        return isValid;
+    }
+
+    /**
      * 保存参数设置
      */
     async config_save_settings() {
         try {
+            // 保存前先验证所有参数
+            if (!this.config_validate_all_params()) {
+                return; // 参数无效，不执行保存操作
+            }
+            
             const writer = this.serial_get_writer();
 
             // 创建配置数据缓冲区（共30字节，不含version和revision）
@@ -762,6 +934,17 @@ class SerialAssistant {
         const control = document.getElementById(`config-${key}`);
         if (control) {
             control.value = value;
+            
+            // 如果是滑块类型，同时更新数值显示
+            if (control.type === 'range') {
+                const valueDisplay = control.nextElementSibling;
+                if (valueDisplay && valueDisplay.className === 'slider-value') {
+                    // 考虑显示偏移量
+                    const param = this.configParams[key];
+                    const displayValue = param.displayValueOffset ? value + param.displayValueOffset : value;
+                    valueDisplay.textContent = displayValue;
+                }
+            }
         }
     }
 
