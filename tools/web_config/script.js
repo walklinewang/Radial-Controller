@@ -109,7 +109,7 @@ class SerialAssistant {
         this.save_settings_button.addEventListener('click', () => this.config_save_settings());
         this.alert_ok_button.addEventListener('click', () => this.hideCustomAlert());
         this.alert_overlay.addEventListener('click', () => this.hideCustomAlert());
-        
+
         // 防止点击弹窗内容时关闭弹窗
         const alert_content = this.custom_alert.querySelector('.custom-alert-content');
         alert_content.addEventListener('click', (e) => e.stopPropagation());
@@ -446,13 +446,13 @@ class SerialAssistant {
             this.clear_timer();
             return;
         }
-        
+
         // 检查端口是否存在且可读写
         if (!this.port || !this.port.readable || !this.port.writable) {
             this.handle_serial_connection_lost();
             return;
         }
-        
+
         // 检查端口是否处于打开状态
         if (this.port.readable.locked || this.port.writable.locked) {
             // 端口被锁定，可能是连接出现问题
@@ -996,11 +996,11 @@ class SerialAssistant {
             const input_element = document.getElementById(`config-${param_key}`);
             if (input_element) {
                 input_element.disabled = !is_connected;
-                
+
                 // 为禁用状态添加视觉反馈
                 if (!is_connected) {
                     input_element.classList.add('disabled-control');
-                    
+
                     // 检查是否为滑块控件，如果是，同时禁用数值显示框
                     if (input_element.type === 'range' && input_element.nextElementSibling) {
                         const value_display = input_element.nextElementSibling;
@@ -1010,7 +1010,7 @@ class SerialAssistant {
                     }
                 } else {
                     input_element.classList.remove('disabled-control');
-                    
+
                     // 检查是否为滑块控件，如果是，同时启用数值显示框
                     if (input_element.type === 'range' && input_element.nextElementSibling) {
                         const value_display = input_element.nextElementSibling;
