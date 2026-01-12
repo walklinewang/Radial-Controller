@@ -10,6 +10,12 @@ static const uint8_t BRIGHT_LEVELS[5] = {0, 3, 5, 9, 15};
 static ws2812_t ws2812;
 static uint8_t brightness = 3;
 
+// Fade效果相关变量
+static ws2812_state_t fade_state = WS2812_STATE_IDLE;
+static uint32_t fade_start_time = 0;
+static uint16_t fade_duration = 0;
+static ws2812_color_t saved_led_colors[10]; // 保存每个LED的原始颜色（项目使用10个LED）
+
 /**
  * @brief 初始化 WS2812 LED 驱动
  * @param pin LED 控制引脚
@@ -237,3 +243,95 @@ void WS2812_SetBrightness(uint8_t level) {
  * @return 当前亮度等级 (0-4)，0 为最亮，4 为最暗
  */
 uint8_t WS2812_GetBrightness(void) { return brightness; }
+
+/**
+ * @brief 更新灯光渐亮/渐暗状态
+ */
+void WS2812_UpdateFade(void) {
+    if (fade_state == WS2812_STATE_IDLE) {
+        return;
+    }
+    
+    uint32_t current_time = millis();
+    uint32_t elapsed_time = current_time - fade_start_time;
+    
+    // 使用整数运算代替浮点数，减少内存占用
+    if (elapsed_time >= fade_duration) {
+        // fade完成
+        if (fade_state == WS2812_STATE_FADE_IN) {
+            // 恢复到原始颜色
+            for (uint8_t i = 0; i < ws2812.led_count; i++) {
+                WS2812_SetPixel(i, saved_led_colors[i].r, saved_led_colors[i].g, saved_led_colors[i].b);
+            }
+        } else if (fade_state == WS2812_STATE_FADE_OUT) {
+            // 完全熄灭
+            WS2812_Clear();
+        }
+        
+        // 重置状态
+        fade_state = WS2812_STATE_IDLE;
+    } else {
+        // 根据当前状态计算颜色
+        uint16_t progress = (uint16_t)(elapsed_time * 256 / fade_duration);
+        uint16_t inverse_progress = 256 - progress;
+        
+        if (fade_state == WS2812_STATE_FADE_IN) {
+            // 渐亮：从0到原始颜色
+            for (uint8_t i = 0; i < ws2812.led_count; i++) {
+                uint8_t r = (uint8_t)((saved_led_colors[i].r * progress) >> 8);
+                uint8_t g = (uint8_t)((saved_led_colors[i].g * progress) >> 8);
+                uint8_t b = (uint8_t)((saved_led_colors[i].b * progress) >> 8);
+                WS2812_SetPixel(i, r, g, b);
+            }
+        } else if (fade_state == WS2812_STATE_FADE_OUT) {
+            // 渐暗：从原始颜色到0
+            for (uint8_t i = 0; i < ws2812.led_count; i++) {
+                uint8_t r = (uint8_t)((saved_led_colors[i].r * inverse_progress) >> 8);
+                uint8_t g = (uint8_t)((saved_led_colors[i].g * inverse_progress) >> 8);
+                uint8_t b = (uint8_t)((saved_led_colors[i].b * inverse_progress) >> 8);
+                WS2812_SetPixel(i, r, g, b);
+            }
+        }
+    }
+    
+    // 显示当前颜色
+    WS2812_Show();
+}
+
+/**
+ * @brief 灯光渐亮效果
+ * @param duration 过渡时长 (毫秒)
+ */
+void WS2812_FadeIn(uint16_t duration) {
+    fade_state = WS2812_STATE_FADE_IN;
+    fade_start_time = millis();
+    fade_duration = duration;
+}
+
+/**
+ * @brief 灯光渐暗效果
+ * @param duration 过渡时长 (毫秒)
+ */
+void WS2812_FadeOut(uint16_t duration) {
+    // 保存当前所有LED的颜色
+    for (uint8_t i = 0; i < ws2812.led_count; i++) {
+        uint8_t offset = i * 3;
+        
+        // 直接使用LED数据缓冲区的颜色值（原始格式）
+        saved_led_colors[i].g = ws2812.led_data[offset];
+        saved_led_colors[i].r = ws2812.led_data[offset + 1];
+        saved_led_colors[i].b = ws2812.led_data[offset + 2];
+    }
+    
+    fade_state = WS2812_STATE_FADE_OUT;
+    fade_start_time = millis();
+    fade_duration = duration;
+}
+
+/**
+ * @brief 获取当前灯光状态
+ * @return 当前状态
+ */
+ws2812_state_t WS2812_GetState(void) {
+    return fade_state;
+}

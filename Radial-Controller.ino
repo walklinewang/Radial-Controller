@@ -141,8 +141,10 @@ void loop() {
             last_direction = direction;
         }
 
-        // 更新 LED 灯效
-        WS2812_SetEffectColor(last_direction);
+        // 只有在空闲状态下才更新 LED 灯效
+        if (WS2812_GetState() == WS2812_STATE_IDLE) {
+            WS2812_SetEffectColor(last_direction);
+        }
     }
 
     if (direction == EC11_DIR_CW) {
@@ -153,14 +155,19 @@ void loop() {
             0, EEPROM_GetRotateCCW()); // 逆时针旋转，发送负值，单位：度
     }
 
+    // 更新Fade效果
+    WS2812_UpdateFade();
+
     // 处理编码器按键
     if (EC11_IsKeyChanged()) {
         ec11_key_state_t key_state = EC11_GetKeyState();
 
         if (key_state == EC11_KEY_PRESSED) {
             Radial_SendData(1, 0); // 按键按下
+            WS2812_FadeOut(300); // 300ms 渐暗效果
         } else {
             Radial_SendData(0, 0); // 按键释放
+            WS2812_FadeIn(300); // 300ms 渐亮效果
         }
     }
 }

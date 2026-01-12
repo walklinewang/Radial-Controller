@@ -97,4 +97,36 @@ void WS2812_SetBrightness(uint8_t level);
  */
 uint8_t WS2812_GetBrightness(void);
 
+/**
+ * @brief WS2812 LED 状态枚举
+ */
+typedef enum {
+    WS2812_STATE_IDLE,     // 空闲状态
+    WS2812_STATE_FADE_IN,  // 渐亮状态
+    WS2812_STATE_FADE_OUT  // 渐暗状态
+} ws2812_state_t;
+
+/**
+ * @brief 灯光渐亮效果
+ * @param duration 过渡时长 (毫秒)
+ */
+void WS2812_FadeIn(uint16_t duration);
+
+/**
+ * @brief 灯光渐暗效果
+ * @param duration 过渡时长 (毫秒)
+ */
+void WS2812_FadeOut(uint16_t duration);
+
+/**
+ * @brief 更新灯光渐亮/渐暗状态
+ */
+void WS2812_UpdateFade(void);
+
+/**
+ * @brief 获取当前灯光状态
+ * @return 当前状态
+ */
+ws2812_state_t WS2812_GetState(void);
+
 #endif /* __MYWS2812_H__ */
