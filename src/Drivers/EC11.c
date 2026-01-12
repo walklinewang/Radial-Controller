@@ -9,7 +9,7 @@
 static ec11_t encoder;
 
 // 旋转事件触发阈值
-static uint8_t threshold;
+static int8_t threshold;
 
 /**
  * @brief 初始化 EC11 编码器
