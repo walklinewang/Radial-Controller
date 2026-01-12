@@ -41,6 +41,8 @@ Radial Controller 作为标准 USB HID 设备，可以在系统级别使用，�
 
 ## 编译上传固件
 
+### 使用 Arduino IDE
+
 1. **安装 ch55xduino 库**：
 
     - 打开 Arduino IDE
@@ -57,13 +59,47 @@ Radial Controller 作为标准 USB HID 设备，可以在系统级别使用，�
     - 设置 USB RAM：`工具 > USB Settings > USER CODE w/266 USB Ram`
     - 选择上传方法：`工具 > 上传方式 > USB`
 
-3. **编译与上传**：
+3. **进入 Bootloader 模式**：
 
-    - 连接 CH552 开发板到电脑
+    - 按住开发板上的 BOOT 按钮不放
+    - 将开发板通过 USB 连接到电脑
+    - 释放 BOOT 按钮，此时开发板进入 Bootloader 模式
+
+    > 注意：除首次上传外，都需要手动进入 Bootloader 模式
+
+4. **编译与上传**：
+
     - 点击 Arduino IDE 中的 "验证" 按钮编译代码
     - 点击 "上传" 按钮将代码烧录到芯片
 
+### 使用 WCH 官方工具
+
+1. **下载 WCH 官方工具**：
+
+    - 访问 WCH 官方网站：[http://www.wch.cn/downloads/WCHISPTool_Setup_exe.html](http://www.wch.cn/downloads/WCHISPTool_Setup_exe.html)
+    - 下载并安装 WCHISPTool (Studio) 工具
+
+2. **准备固件文件**：
+
+    - 下载项目提供的[预编译固件文件](https://github.com/walklinewang/Radial-Controller/releases)
+
+3. **进入 Bootloader 模式**：
+
+    - 按住开发板上的 BOOT 按钮不放
+    - 将开发板通过 USB 连接到电脑
+    - 释放 BOOT 按钮，此时开发板进入 Bootloader 模式
+
     > 注意：除首次上传外，都需要手动进入 Bootloader 模式
+
+4. **使用 WCHISPTool (Studio) 烧录固件**：
+
+    - 打开 WCHISPTool (Studio) 工具
+    - 在 "设备类型" 中选择 "CH552"
+    - 点击 "搜索设备" 按钮，工具将自动识别 Bootloader 模式下的 CH552 芯片
+    - 在 "目标程序文件" 中选择编译好的 `.hex` 固件文件
+    - 勾选 "下载完成后运行目标程序" 选项
+    - 点击 "下载" 按钮开始烧录固件
+    - 烧录完成后，设备将自动运行新烧录的固件
 
 ## Web Config 工具
 
@@ -143,7 +179,7 @@ this.USB_VENDOR_ID = 0x1209;
 
 ## 故障排除
 
-### 设备无法被识别
+### 1. 设备无法被识别
 
 **问题**：设备连接到计算机后，无法被识别或显示为未知设备
 
@@ -154,7 +190,7 @@ this.USB_VENDOR_ID = 0x1209;
 3. 重新烧录固件
 4. 检查设备驱动是否正确安装（Windows 系统）
 
-### Web Config 工具无法连接设备
+### 2. Web Config 工具无法连接设备
 
 **问题**：Web Config 工具无法找到或连接设备
 
@@ -165,7 +201,7 @@ this.USB_VENDOR_ID = 0x1209;
 3. 清除浏览器缓存并重新加载页面
 4. 检查浏览器是否有 Web Serial API 访问权限
 
-### 旋转编码器无响应
+### 3. 旋转编码器无响应
 
 **问题**：旋转编码器时，计算机或灯效无响应
 
@@ -176,7 +212,7 @@ this.USB_VENDOR_ID = 0x1209;
 3. 调整旋转灵敏度配置
 4. 重新烧录固件
 
-### 灯效异常
+### 4. 灯效异常
 
 **问题**：LED 灯珠不亮或显示异常颜色
 
