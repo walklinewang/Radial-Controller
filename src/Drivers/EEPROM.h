@@ -13,8 +13,8 @@
 #define EEPROM_CONFIG_START_ADDRESS 0
 
 // 配置版本号和修订号
-#define CURRENT_CONFIG_VERSION 1
-#define CURRENT_CONFIG_REVISION 0
+#define CURRENT_CONFIG_VERSION 0
+#define CURRENT_CONFIG_REVISION 1
 
 // 配置结构体大小（字节）
 #define CONFIG_STRUCT_SIZE sizeof(config_t)
