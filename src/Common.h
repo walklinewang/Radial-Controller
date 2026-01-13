@@ -1,6 +1,10 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+// 固件版本号和修订号
+#define FIRMWARE_VERSION 0
+#define FIRMWARE_REVISION 2
+
 // EC11 编码器引脚定义
 #define EC11_PIN_A 33
 #define EC11_PIN_B 31
