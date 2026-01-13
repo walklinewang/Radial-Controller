@@ -12,6 +12,15 @@
 #include <WS2812.h>
 
 /**
+ * @brief WS2812 LED 状态枚举
+ */
+typedef enum {
+    WS2812_EFFECT_STATE_ROTATION, // 流动灯效状态
+    WS2812_EFFECT_STATE_FADE_IN,  // 渐亮状态
+    WS2812_EFFECT_STATE_FADE_OUT  // 渐暗状态
+} ws2812_effect_state_t;
+
+/**
  * @brief WS2812 LED 颜色结构体
  */
 typedef struct {
@@ -27,8 +36,13 @@ typedef struct {
     uint8_t pin;       // LED 控制引脚
     uint8_t led_count; // 灯珠数量
     uint8_t led_data[30]; // LED 数据缓冲区 (最大支持 10 个 LED，10×3=30 字节)
-    uint8_t color_order; // 颜色顺序 (0: GRB, 1: RGB)
-    uint16_t data_size;  // 数据缓冲区大小
+    uint8_t color_order;                // 颜色顺序 (0: GRB, 1: RGB)
+    uint8_t brightness;                 // 亮度等级 (0-4)
+    uint16_t data_size;                 // 数据缓冲区大小
+    ws2812_effect_state_t effect_state; // 特效状态
+    uint16_t rotate_interval;           // 流动灯效间隔时间 (毫秒)
+    uint16_t fade_duration;             // 渐变灯效持续时间 (毫秒)
+    uint32_t fade_start_time;           // 渐变灯效开始时间 (毫秒)
 } ws2812_t;
 
 /**
@@ -39,11 +53,6 @@ typedef struct {
  * @return 初始化是否成功
  */
 bool WS2812_Init(uint8_t pin, uint8_t led_count, uint8_t color_order);
-
-/**
- * @brief 释放 WS2812 资源
- */
-void WS2812_Deinit(void);
 
 /**
  * @brief 设置单个 LED 的颜色
@@ -62,22 +71,6 @@ void WS2812_SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b);
 void WS2812_SetPixelColor(uint8_t index, ws2812_color_t color);
 
 /**
- * @brief 设置 LED 流动灯效
- * @param direction 旋转方向 (EC11_DIR_CW 顺时针, EC11_DIR_CCW 逆时针)
- */
-void WS2812_SetEffectColor(ec11_direction_t direction);
-
-/**
- * @brief 将 LED 数据显示到灯珠上
- */
-void WS2812_Show(void);
-
-/**
- * @brief 清空所有 LED（设置为熄灭状态）
- */
-void WS2812_Clear(void);
-
-/**
  * @brief 设置所有 LED 为同一颜色
  * @param r 红色分量 (0-255)
  * @param g 绿色分量 (0-255)
@@ -86,47 +79,66 @@ void WS2812_Clear(void);
 void WS2812_SetAllPixels(uint8_t r, uint8_t g, uint8_t b);
 
 /**
+ * @brief 清空所有 LED（设置为熄灭状态）
+ */
+void WS2812_Clear();
+
+/**
+ * @brief 将 LED 数据显示到灯珠上
+ */
+void WS2812_Show();
+
+/**
+ * @brief 设置 LED 流动灯效的触发间隔时间
+ * @param interval 触发间隔时间 (毫秒)
+ */
+void WS2812_SetRotateEffectInterval(uint16_t interval);
+
+/**
+ * @brief 执行 LED 流动灯效
+ * @param direction 旋转方向 (EC11_DIR_CW 顺时针, EC11_DIR_CCW 逆时针)
+ */
+void WS2812_ShowRotationEffect(ec11_direction_t direction);
+
+/**
+ * @brief 设置 LED 渐亮效果
+ * @param duration 持续时长 (毫秒)
+ */
+void WS2812_SetFadeInEffect();
+
+/**
+ * @brief 设置 LED 渐暗效果
+ * @param duration 持续时长 (毫秒)
+ */
+void WS2812_SetFadeOutEffect();
+
+/**
+ * @brief 设置 LED 渐变灯效的默认持续时间
+ * @param duration 默认持续时长 (毫秒)
+ */
+void WS2812_SetFadeEffectDuration(uint16_t duration);
+
+/**
+ * @brief 执行 LED 渐变灯效
+ */
+void WS2812_ShowFadeEffect();
+
+/**
+ * @brief 获取当前 LED 特效状态
+ * @return 当前状态
+ */
+ws2812_effect_state_t WS2812_GetEffectState();
+
+/**
  * @brief 设置当前亮度等级
- * @param level 亮度等级 (0-4)，0 为最亮，4 为最暗
+ * @param level 亮度等级 (0-4)，0 为最暗，4 为最亮
  */
 void WS2812_SetBrightness(uint8_t level);
 
 /**
  * @brief 获取当前亮度等级
- * @return 当前亮度等级 (0-4)，0 为最亮，4 为最暗
+ * @return 当前亮度等级 (0-4)，0 为最暗，4 为最亮
  */
-uint8_t WS2812_GetBrightness(void);
-
-/**
- * @brief WS2812 LED 状态枚举
- */
-typedef enum {
-    WS2812_STATE_IDLE,     // 空闲状态
-    WS2812_STATE_FADE_IN,  // 渐亮状态
-    WS2812_STATE_FADE_OUT  // 渐暗状态
-} ws2812_state_t;
-
-/**
- * @brief 灯光渐亮效果
- * @param duration 过渡时长 (毫秒)
- */
-void WS2812_FadeIn(uint16_t duration);
-
-/**
- * @brief 灯光渐暗效果
- * @param duration 过渡时长 (毫秒)
- */
-void WS2812_FadeOut(uint16_t duration);
-
-/**
- * @brief 更新灯光渐亮/渐暗状态
- */
-void WS2812_UpdateFade(void);
-
-/**
- * @brief 获取当前灯光状态
- * @return 当前状态
- */
-ws2812_state_t WS2812_GetState(void);
+uint8_t WS2812_GetBrightness();
 
 #endif /* __MYWS2812_H__ */
