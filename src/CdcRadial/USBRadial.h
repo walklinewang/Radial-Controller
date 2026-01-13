@@ -66,19 +66,19 @@ bool Radial_SendData(__data uint8_t button, __data int16_t degree);
 /**
  * @brief 重置径向控制器报告
  */
-void Radial_ResetReport(void);
+void Radial_ResetReport();
 
 /**
  * @brief 获取径向控制器报告指针
  * @return RadialReport* 径向控制器报告指针
  */
-RadialReport *Radial_GetReport(void);
+RadialReport *Radial_GetReport();
 
 /**
  * @brief 获取最后一个错误代码
  * @return uint8_t 错误代码
  */
-uint8_t Radial_GetLastError(void);
+uint8_t Radial_GetLastError();
 
 #ifdef __cplusplus
 } // extern "C"

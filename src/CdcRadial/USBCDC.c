@@ -40,7 +40,6 @@ void USBInit() {
 }
 
 void resetCDCParameters() {
-
     USBByteCountEP2 = 0; // Bytes of received data on USB endpoint
     UpPoint2BusyFlag = 0;
 }
@@ -121,7 +120,7 @@ bool USBSerial() {
     return result;
 }
 
-void USBSerial_flush(void) {
+void USBSerial_flush() {
     if (!UpPoint2BusyFlag && usbWritePointer > 0) {
         UEP2_T_LEN = usbWritePointer;
         UEP2_CTRL = UEP2_CTRL & ~MASK_UEP_T_RES | UEP_T_RES_ACK; // Respond ACK
