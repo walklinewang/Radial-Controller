@@ -47,7 +47,8 @@ class SerialAssistant {
             brightness: { label: '亮度等级', type: 'slider', min: 0, max: 4, step: 1, value: 3, displayValueOffset: 1 },
             color_order: { label: '颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB' }, { value: 1, label: 'RGB' }], value: 0 },
             effect_mode: { label: '灯效模式', type: 'select', options: [{ value: 0, label: '默认' }], value: 0 },
-            effect_tick: { label: '灯效循环周期（毫秒）', type: 'number', min: 20, max: 500, value: 50 },
+            rotate_interval: { label: '流动灯效循环周期（毫秒）', type: 'number', min: 20, max: 500, value: 50 },
+            fade_duration: { label: '渐变灯效持续时间（毫秒）', type: 'number', min: 20, max: 500, value: 100 },
             rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
             rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 },
             step_per_teeth: { label: '每转动一齿触发动作次数', type: 'select', options: [{ value: 1, label: '1' }, { value: 2, label: '2' }], value: 2 }
@@ -252,7 +253,7 @@ class SerialAssistant {
         this.config_container.innerHTML = '';
 
         // 分组定义参数
-        const ledParams = ['led_count', 'brightness', 'color_order', 'effect_mode', 'effect_tick'];
+        const ledParams = ['led_count', 'brightness', 'color_order', 'effect_mode', 'rotate_interval', 'fade_duration'];
         const encoderParams = ['rotate_cw', 'rotate_ccw', 'step_per_teeth'];
 
         // 创建LED相关参数容器
@@ -615,11 +616,12 @@ class SerialAssistant {
             color_order: view.getUint8(3),
             brightness: view.getUint8(4),
             effect_mode: view.getUint8(5),
-            effect_tick: view.getUint16(6, true), // true表示小端字节序
-            rotate_cw: view.getInt16(8, true),
-            rotate_ccw: view.getInt16(10, true),
-            step_per_teeth: view.getUint8(12),
-            // reserved字段从13-31，共20字节，暂不处理
+            rotate_interval: view.getUint16(6, true), // true表示小端字节序
+            fade_duration: view.getUint16(8, true),
+            rotate_cw: view.getInt16(10, true),
+            rotate_ccw: view.getInt16(12, true),
+            step_per_teeth: view.getUint8(14),
+            // reserved字段从15-31，共17字节，暂不处理
         };
 
         // 更新参数设置
@@ -647,7 +649,8 @@ class SerialAssistant {
         this.update_config_controls('color_order', this.config_params.color_order.value);
         this.update_config_controls('brightness', this.config_params.brightness.value);
         this.update_config_controls('effect_mode', this.config_params.effect_mode.value);
-        this.update_config_controls('effect_tick', this.config_params.effect_tick.value);
+        this.update_config_controls('rotate_interval', this.config_params.rotate_interval.value);
+        this.update_config_controls('fade_duration', this.config_params.fade_duration.value);
         this.update_config_controls('rotate_cw', this.config_params.rotate_cw.value);
         this.update_config_controls('rotate_ccw', this.config_params.rotate_ccw.value);
         this.update_config_controls('step_per_teeth', this.config_params.step_per_teeth.value);
@@ -835,8 +838,12 @@ class SerialAssistant {
             // effect_mode (1字节)
             view.setUint8(offset++, this.config_params.effect_mode.value);
 
-            // effect_tick (2字节，小端)
-            view.setUint16(offset, this.config_params.effect_tick.value, true);
+            // rotate_interval (2字节，小端)
+            view.setUint16(offset, this.config_params.rotate_interval.value, true);
+            offset += 2;
+
+            // fade_duration (2字节，小端)
+            view.setUint16(offset, this.config_params.fade_duration.value, true);
             offset += 2;
 
             // rotate_cw (2字节，小端)
