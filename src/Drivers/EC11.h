@@ -53,25 +53,25 @@ void EC11_Init(uint8_t pin_a, uint8_t pin_b, uint8_t pin_key);
 /**
  * @brief 更新 EC11 编码器状态
  */
-void EC11_UpdateStatus(void);
+void EC11_UpdateStatus();
 
 /**
  * @brief 获取 EC11 编码器旋转方向
  * @return 旋转方向
  */
-ec11_direction_t EC11_GetDirection(void);
+ec11_direction_t EC11_GetDirection();
 
 /**
  * @brief 获取 EC11 编码器按键状态
  * @return 按键状态
  */
-ec11_key_state_t EC11_GetKeyState(void);
+ec11_key_state_t EC11_GetKeyState();
 
 /**
  * @brief 检查 EC11 编码器按键状态是否变化
  * @return 是否变化
  */
-bool EC11_IsKeyChanged(void);
+bool EC11_IsKeyChanged();
 
 /**
  * @brief 设置 EC11 编码器触发动作的次数
