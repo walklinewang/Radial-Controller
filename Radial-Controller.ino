@@ -24,37 +24,23 @@
 
 #define HEARTBEAT_TIMEOUT 4000 // 心跳超时时间（4秒）
 
+void update_config();
 void process_heartbeat();
-void process_command(unsigned char *command);
+void process_command(uint8_t *command);
 
 // 接收缓冲区，用于存储从串口接收的命令
-unsigned char receive_str[50];
+uint8_t receive_buf[50];
 uint8_t receive_ptr = 0;
 bool received = false;
 
 // 上一次编码器旋转方向
 ec11_direction_t last_direction = EC11_DIR_CW;
 
-// tick 计数器，用于控制 LED 灯效更新频率
-uint16_t tick_count = 0;
-
 // 是否为配置模式
 bool is_config_mode = false;
 
 // 心跳检测相关变量
 uint32_t heartbeat_last_received = 0; // 最后一次收到心跳的时间戳
-
-/**
- * @brief 配置更新后执行的初始化操作
- */
-void UpdateConfigAfterChange(void) {
-    // 设置 EC11 编码器转动一齿触发次数
-    EC11_SetStepPerTeeth(EEPROM_GetStepPerTeeth());
-
-    // 重新初始化 WS2812 LED
-    WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
-    WS2812_SetBrightness(EEPROM_GetBrightness());
-}
 
 void setup() {
     USBInit();
@@ -66,44 +52,44 @@ void setup() {
     EC11_Init(EC11_PIN_A, EC11_PIN_B, EC11_PIN_K);
 
     // 执行配置初始化
-    UpdateConfigAfterChange();
+    update_config();
 }
 
 void loop() {
     bool is_save_command = false;
 
     while (USBSerial_available()) {
-        unsigned char serial_char = USBSerial_read();
+        uint8_t serial_char = USBSerial_read();
 
         // 针对 save_settings 命令的特殊处理
         if (receive_ptr >= 14) {
-            is_save_command = (memcmp(receive_str, "save_settings=", 14) == 0);
+            is_save_command = (memcmp(receive_buf, "save_settings=", 14) == 0);
         }
 
         if (is_save_command) {
-            receive_str[receive_ptr] = serial_char;
+            receive_buf[receive_ptr] = serial_char;
             receive_ptr++;
 
             // save_settings=命令格式：14字节前缀 + 30字节数据 + 1字节换行符
             if (receive_ptr >= 14 + 30 + 1) {
-                receive_str[receive_ptr] = '\0';
+                receive_buf[receive_ptr] = '\0';
                 received = true;
                 break;
             }
         }
         // 对于其他命令，使用换行符或回车符作为结束标记
         else if ((serial_char == '\n') || (serial_char == '\r')) {
-            receive_str[receive_ptr] = '\0';
+            receive_buf[receive_ptr] = '\0';
             if (receive_ptr > 0) {
                 received = true;
                 break;
             }
         } else {
-            receive_str[receive_ptr] = serial_char;
+            receive_buf[receive_ptr] = serial_char;
             receive_ptr++;
 
-            if (receive_ptr >= sizeof(receive_str) - 1) {
-                receive_str[receive_ptr] = '\0';
+            if (receive_ptr >= sizeof(receive_buf) - 1) {
+                receive_buf[receive_ptr] = '\0';
                 received = true;
                 break;
             }
@@ -111,7 +97,7 @@ void loop() {
     }
 
     if (received) {
-        process_command(receive_str);
+        process_command(receive_buf);
 
         receive_ptr = 0;
         received = false;
@@ -131,20 +117,15 @@ void loop() {
     ec11_direction_t direction = EC11_GetDirection();
 
     delay(1);
-    tick_count++;
 
-    // 定时更新 LED 灯效
-    if (tick_count >= EEPROM_GetEffectTick()) {
-        tick_count = 0;
+    // 更新方向状态
+    if (direction != EC11_DIR_NONE && direction != last_direction) {
+        last_direction = direction;
+    }
 
-        if (direction != EC11_DIR_NONE && direction != last_direction) {
-            last_direction = direction;
-        }
-
-        // 只有在空闲状态下才更新 LED 灯效
-        if (WS2812_GetState() == WS2812_STATE_IDLE) {
-            WS2812_SetEffectColor(last_direction);
-        }
+    // 只有在流动灯效状态下才更新 LED 流动灯效
+    if (WS2812_GetEffectState() == WS2812_EFFECT_STATE_ROTATION) {
+        WS2812_ShowRotationEffect(last_direction);
     }
 
     if (direction == EC11_DIR_CW) {
@@ -155,40 +136,52 @@ void loop() {
             0, EEPROM_GetRotateCCW()); // 逆时针旋转，发送负值，单位：度
     }
 
-    // 更新Fade效果
-    WS2812_UpdateFade();
+    // 执行 Fade 效果
+    WS2812_ShowFadeEffect();
 
     // 处理编码器按键
     if (EC11_IsKeyChanged()) {
         ec11_key_state_t key_state = EC11_GetKeyState();
 
         if (key_state == EC11_KEY_PRESSED) {
-            Radial_SendData(1, 0); // 按键按下
-            WS2812_FadeOut(300); // 300ms 渐暗效果
+            Radial_SendData(1, 0);     // 按键按下
+            WS2812_SetFadeOutEffect(); // 渐暗效果
         } else {
-            Radial_SendData(0, 0); // 按键释放
-            WS2812_FadeIn(300); // 300ms 渐亮效果
+            Radial_SendData(0, 0);    // 按键释放
+            WS2812_SetFadeInEffect(); // 渐亮效果
         }
     }
+}
+
+/**
+ * @brief 配置更新后执行的初始化操作
+ */
+void update_config() {
+    // 设置 EC11 编码器转动一齿触发次数
+    EC11_SetStepPerTeeth(EEPROM_GetStepPerTeeth());
+
+    // 重新初始化 WS2812 LED
+    WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
+    WS2812_SetBrightness(EEPROM_GetBrightness());
+
+    // 设置 LED 流动灯效的触发间隔时间
+    WS2812_SetRotateEffectInterval(EEPROM_GetRotateEffectInterval());
+
+    // 设置 LED 渐变灯效的持续时间
+    WS2812_SetFadeEffectDuration(EEPROM_GetFadeEffectDuration());
 }
 
 /**
  * @brief 处理心跳包命令
  */
 void process_heartbeat() {
-    uint32_t current_time = millis();
-
-    if (current_time - heartbeat_last_received >= HEARTBEAT_TIMEOUT) {
+    if (millis() - heartbeat_last_received >= HEARTBEAT_TIMEOUT) {
         // 心跳超时，退出配置模式
         is_config_mode = false;
         heartbeat_last_received = 0; // 重置心跳时间戳
 
         USBSerial_println("config_mode_timedout");
         USBSerial_flush();
-
-        // 重新初始化LED
-        WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
-        WS2812_SetBrightness(EEPROM_GetBrightness());
     }
 }
 
@@ -196,8 +189,8 @@ void process_heartbeat() {
  * @brief 处理 CDC 接收到的命令
  * @param command 接收到的命令字符串
  */
-void process_command(unsigned char *command) {
-    if (strcmp((const unsigned char *)command, CMD_CONFIG_MODE_ENABLED) == 0) {
+void process_command(uint8_t *command) {
+    if (strcmp((const uint8_t *)command, CMD_CONFIG_MODE_ENABLED) == 0) {
         is_config_mode = true;
 
         // 初始化心跳检测，设置最后收到心跳时间为当前时间
@@ -206,17 +199,17 @@ void process_command(unsigned char *command) {
         USBSerial_print(CMD_CONFIG_MODE_ENABLED);
         USBSerial_println(CMD_SUCCESS);
         USBSerial_flush();
-    } else if (strcmp((const unsigned char *)command, "heartbeat") == 0) {
+    } else if (strcmp((const uint8_t *)command, "heartbeat") == 0) {
         // 接收网页端发送的心跳包
         if (is_config_mode) {
             heartbeat_last_received = millis(); // 更新最后收到心跳的时间戳
         }
-    } else if (strcmp((const unsigned char *)command, "load_settings") == 0) {
+    } else if (strcmp((const uint8_t *)command, "load_settings") == 0) {
         // 从 EEPROM 加载配置参数
         EEPROM_LoadConfig();
 
         // 获取完整配置结构体
-        config_t *config = EEPROM_GetConfigData();
+        eeprom_config_t *config = EEPROM_GetConfigData();
 
         // 发送配置数据前缀
         USBSerial_print("config=");
@@ -229,10 +222,9 @@ void process_command(unsigned char *command) {
 
         USBSerial_println();
         USBSerial_flush();
-    } else if (memcmp((const unsigned char *)command, "save_settings=", 14) ==
-               0) {
-        // 从命令中提取30字节配置数据
-        config_t *config = EEPROM_GetConfigData();
+    } else if (memcmp((const uint8_t *)command, "save_settings=", 14) == 0) {
+        // 从命令中提取配置数据
+        eeprom_config_t *config = EEPROM_GetConfigData();
 
         // 跳过"save_settings="前缀（14字节）
         const uint8_t *data_ptr = (const uint8_t *)(command + 14);
@@ -247,7 +239,7 @@ void process_command(unsigned char *command) {
         // 保存配置到EEPROM
         if (EEPROM_SaveConfig() == EEPROM_STATUS_OK) {
             // 执行配置更新后的初始化操作
-            UpdateConfigAfterChange();
+            update_config();
 
             USBSerial_print(CMD_CONFIG_SAVE_SETTINGS);
             USBSerial_println(CMD_SUCCESS);
@@ -257,20 +249,20 @@ void process_command(unsigned char *command) {
             USBSerial_println(CMD_FAILED);
             USBSerial_flush();
         }
-    } else if (strcmp((const unsigned char *)command,
-                      CMD_CONFIG_RESET_SETTINGS) == 0) {
+    } else if (strcmp((const uint8_t *)command, CMD_CONFIG_RESET_SETTINGS) ==
+               0) {
         EEPROM_Reset();
         EEPROM_SaveConfig();
 
         // 执行配置更新后的初始化操作
-        UpdateConfigAfterChange();
+        update_config();
 
         USBSerial_print(CMD_CONFIG_RESET_SETTINGS);
         USBSerial_println(CMD_SUCCESS);
         USBSerial_flush();
 
         /* 以下为测试用命令 */
-    } else if (strcmp((const unsigned char *)command, "show_menu") == 0) {
+    } else if (strcmp((const uint8_t *)command, "show_menu") == 0) {
         // 模拟径向控制器按钮按下
         Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
 
@@ -279,7 +271,7 @@ void process_command(unsigned char *command) {
 
         // 执行按钮释放动作
         Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
-    } else if (strcmp((const unsigned char *)command, "click") == 0) {
+    } else if (strcmp((const uint8_t *)command, "click") == 0) {
         // 立即模拟径向控制器按钮按下
         Radial_SendData(1, 0); // button=1(按下), degree=0(无旋转)
 
@@ -288,13 +280,13 @@ void process_command(unsigned char *command) {
 
         // 执行按钮释放动作
         Radial_SendData(0, 0); // button=0(释放), degree=0(无旋转)
-    } else if (strcmp((const unsigned char *)command, "rotate_l") == 0) {
+    } else if (strcmp((const uint8_t *)command, "rotate_l") == 0) {
         // 模拟向左旋转（逆时针），单次旋转值为 -10 度
         Radial_SendData(0, -10); // button=0(释放), degree=-10(向左旋转)
-    } else if (strcmp((const unsigned char *)command, "rotate_r") == 0) {
+    } else if (strcmp((const uint8_t *)command, "rotate_r") == 0) {
         // 模拟向右旋转（顺时针），单次旋转值为 10 度
         Radial_SendData(0, 10); // button=0(释放), degree=10(向右旋转)
-    } else if (strcmp((const unsigned char *)command, "test_led") == 0) {
+    } else if (strcmp((const uint8_t *)command, "test_led") == 0) {
         // 测试LED灯效
         WS2812_SetAllPixels(255, 0, 0);
         WS2812_Show();
