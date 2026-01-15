@@ -224,6 +224,9 @@ void WS2812_ShowRotationEffect(ec11_direction_t direction) {
         WS2812_FillRotationEffectColor(
             index, (count + (index * 30) / ws2812.led_count) % 30);
     }
+
+    // 显示更新后的颜色
+    WS2812_Show();
 }
 
 /**
