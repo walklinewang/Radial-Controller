@@ -41,7 +41,7 @@ void EC11_Init(uint8_t pin_a, uint8_t pin_b, uint8_t pin_key) {
  * @brief 更新 EC11 编码器状态
  */
 void EC11_UpdateStatus() {
-    static uint8_t count = 0;
+    static int8_t count = 0;
 
     // 初始化方向为无旋转
     encoder.direction = EC11_DIR_NONE;
@@ -57,7 +57,7 @@ void EC11_UpdateStatus() {
     }
 
     // 根据 step_per_teeth 配置判断是否触发旋转事件
-    uint8_t threshold = (encoder.step_per_teeth == 1) ? 2 : 1;
+    int8_t threshold = (encoder.step_per_teeth == 1) ? 2 : 1;
 
     if (count >= threshold) {
         encoder.direction = EC11_DIR_CW; // 顺时针旋转
