@@ -311,19 +311,20 @@ class SerialAssistant {
             this.show_status('正在连接串口...', 'success');
 
             const serial_config = {
-                baud_rate: 115200,
-                data_bits: 8,
-                stop_bits: 1,
+                baudRate: 115200,
+                dataBits: 8,
+                stopBits: 1,
                 parity: 'none'
             };
-            this.show_status('串口设置: ' + serial_config);
+            this.show_status('串口设置:');
+            this.show_status(serial_config);
 
             let port = await navigator.serial.requestPort({ filters: [{ usbVendorId: this.USB_VENDOR_ID }] });
 
             await port.open(serial_config);
             this.port = port;
 
-            this.show_status(`串口连接成功 (${serial_config.baud_rate} bps, ${serial_config.data_bits}N${serial_config.stop_bits}, ${serial_config.parity})`, 'success');
+            this.show_status(`串口连接成功 (${serial_config.baudRate} bps, ${serial_config.dataBits}N${serial_config.stopBits}, ${serial_config.parity})`, 'success');
 
             // 开始接收数据
             this.serial_start_reading();
@@ -448,16 +449,10 @@ class SerialAssistant {
             return;
         }
 
-        // 检查端口是否存在且可读写
-        if (!this.port || !this.port.readable || !this.port.writable) {
+        // 检查端口是否存在
+        if (!this.port) {
             this.handle_serial_connection_lost();
             return;
-        }
-
-        // 检查端口是否处于打开状态
-        if (this.port.readable.locked || this.port.writable.locked) {
-            // 端口被锁定，可能是连接出现问题
-            this.handle_serial_connection_lost();
         }
     }
 
@@ -660,7 +655,8 @@ class SerialAssistant {
             this.firmware_version.textContent = `${config.version}.${config.revision}`;
         }
 
-        this.show_status("CONFIG: " + config);
+        this.show_status('参数设置');
+        this.show_status(config);
     }
 
     /**
@@ -1039,7 +1035,11 @@ class SerialAssistant {
      * @param {string} type - 状态类型，可选值：'info'（默认）、'success'、'error'
      */
     show_status(message, type = 'info') {
-        console.log(`[${type.toUpperCase()}] ${message}`);
+        if (typeof message === 'object') {
+            console.log(message);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
     }
 
     /**
