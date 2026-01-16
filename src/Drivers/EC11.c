@@ -24,7 +24,8 @@ void EC11_Init(uint8_t pin_a, uint8_t pin_b, uint8_t pin_key) {
     encoder.direction = EC11_DIR_NONE;
     encoder.key_state = EC11_KEY_RELEASED;
     encoder.key_changed = false;
-    encoder.step_per_teeth = 2; // 默认转动一齿触发2次
+    encoder.step_per_teeth = 2;         // 默认转动一齿触发2次
+    encoder.phase = EC11_PHASE_A_LEADS; // 默认 A 相超前
 
     // 设置引脚模式
     pinMode(encoder.pin_a, INPUT_PULLUP);
@@ -35,6 +36,26 @@ void EC11_Init(uint8_t pin_a, uint8_t pin_b, uint8_t pin_key) {
     encoder.last_a_state = digitalRead(encoder.pin_a);
     encoder.last_b_state = digitalRead(encoder.pin_b);
     encoder.last_key_state = digitalRead(encoder.pin_key);
+}
+
+/**
+ * @brief 相位转换辅助函数
+ * @details 根据相位配置转换旋转方向
+ *          当硬件配置为 B 相超前时，需要反转旋转方向以统一为 A 相超前的逻辑
+ * @param direction 当前检测到的旋转方向
+ * @return 转换后的旋转方向
+ */
+static ec11_direction_t EC11_ConvertDirection(ec11_direction_t direction) {
+    if (encoder.phase == EC11_PHASE_B_LEADS) {
+        // B 相超前配置，反转旋转方向
+        if (direction == EC11_DIR_CW) {
+            return EC11_DIR_CCW;
+        } else if (direction == EC11_DIR_CCW) {
+            return EC11_DIR_CW;
+        }
+    }
+
+    return direction;
 }
 
 /**
@@ -66,6 +87,9 @@ void EC11_UpdateStatus() {
         encoder.direction = EC11_DIR_CCW; // 逆时针旋转
         count = 0;
     }
+
+    // 应用相位转换，统一转换为 A 相超前的逻辑
+    encoder.direction = EC11_ConvertDirection(encoder.direction);
 
     // 更新 A 相和 B 相的上一次状态
     encoder.last_a_state = current_a_state;
@@ -109,3 +133,9 @@ void EC11_SetStepPerTeeth(uint8_t step) {
         encoder.step_per_teeth = step;
     }
 }
+
+/**
+ * @brief 设置 EC11 编码器相位配置
+ * @param phase 相位配置
+ */
+void EC11_SetPhase(ec11_phase_t phase) { encoder.phase = phase; }

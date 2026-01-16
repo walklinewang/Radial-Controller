@@ -10,6 +10,18 @@
 #include <Arduino.h>
 
 /**
+ * @brief EC11 编码器相位配置枚举
+ * @details 用于指定 EC11 编码器的硬件相位配置
+ *          - EC11_PHASE_A_LEADS: A 相超前（默认配置）
+ *          - EC11_PHASE_B_LEADS: B 相超前
+ * @note 无论硬件实际配置如何，软件内部都会统一转换为 A 相超前的逻辑处理
+ */
+typedef enum {
+    EC11_PHASE_A_LEADS, // A 相超前
+    EC11_PHASE_B_LEADS  // B 相超前
+} ec11_phase_t;
+
+/**
  * @brief EC11 编码器旋转方向枚举
  */
 typedef enum {
@@ -40,6 +52,7 @@ typedef struct {
     ec11_key_state_t key_state; // 当前按键状态
     bool key_changed;           // 按键状态是否变化
     uint8_t step_per_teeth;     // 转动一齿触发次数
+    ec11_phase_t phase;         // 相位配置
 } ec11_t;
 
 /**
@@ -78,5 +91,11 @@ bool EC11_IsKeyChanged();
  * @param step 每转动一齿触发动作次数
  */
 void EC11_SetStepPerTeeth(uint8_t step);
+
+/**
+ * @brief 设置 EC11 编码器相位配置
+ * @param phase 相位配置
+ */
+void EC11_SetPhase(ec11_phase_t phase);
 
 #endif /* __EC11_H__ */
