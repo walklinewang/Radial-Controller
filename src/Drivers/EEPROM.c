@@ -66,17 +66,18 @@ eeprom_status_t EEPROM_SaveConfig() {
  */
 eeprom_status_t EEPROM_Reset() {
     // 设置默认配置
-    config.version = FIRMWARE_VERSION;   // 默认版本号
-    config.revision = FIRMWARE_REVISION; // 默认修订号
-    config.led_count = 4;                // 默认LED数量
-    config.color_order = 0;              // 默认颜色顺序（GRB）
-    config.brightness = 3;               // 默认亮度等级
-    config.effect_mode = 0;              // 默认灯效模式
+    config.version = FIRMWARE_VERSION;           // 默认版本号
+    config.revision = FIRMWARE_REVISION;         // 默认修订号
+    config.led_count = 4;                        // 默认LED数量
+    config.color_order = WS2812_COLOR_ORDER_GRB; // 默认颜色顺序（GRB）
+    config.brightness = 3;                       // 默认亮度等级
+    config.effect_mode = 0;                      // 默认灯效模式
     config.rotate_interval = 50; // 默认流动灯效循环周期（50ms）
     config.fade_duration = 100;  // 默认渐变灯效持续时间（300ms）
     config.rotate_cw = 10;       // 默认顺时针旋转角度
     config.rotate_ccw = -10;     // 默认逆时针旋转角度
     config.step_per_teeth = 2;   // 默认转动一齿触发次数
+    config.phase = EC11_PHASE_A_LEADS; // 默认 EC11 编码器相位配置
 
     // 初始化预留空间为 0
     for (uint8_t i = 0; i < sizeof(config.reserved); i++) {
@@ -96,8 +97,9 @@ eeprom_status_t EEPROM_Validate() {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
-    // 检查颜色顺序是否在有效范围内（0:GRB, 1:RGB）
-    if (config.color_order > 1) {
+    // 检查颜色顺序是否在有效范围内
+    if (config.color_order != WS2812_COLOR_ORDER_GRB &&
+        config.color_order != WS2812_COLOR_ORDER_RGB) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -133,6 +135,12 @@ eeprom_status_t EEPROM_Validate() {
 
     // 检查转动一齿触发次数是否在有效范围内
     if (config.step_per_teeth != 1 && config.step_per_teeth != 2) {
+        return EEPROM_STATUS_INVALID_PARAM;
+    }
+
+    // 检查 EC11 编码器相位配置是否在有效范围内
+    if (config.phase != EC11_PHASE_A_LEADS &&
+        config.phase != EC11_PHASE_B_LEADS) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -173,17 +181,17 @@ eeprom_status_t EEPROM_SetLedCount(uint8_t count) {
 
 /**
  * @brief 获取LED颜色顺序
- * @return LED颜色顺序（0:GRB, 1:RGB）
+ * @return LED颜色顺序
  */
-uint8_t EEPROM_GetColorOrder() { return config.color_order; }
+ws2812_color_order_t EEPROM_GetColorOrder() { return config.color_order; }
 
 /**
  * @brief 设置LED颜色顺序
- * @param order LED颜色顺序（0:GRB, 1:RGB）
+ * @param order LED颜色顺序
  * @return 操作状态
  */
-eeprom_status_t EEPROM_SetColorOrder(uint8_t order) {
-    if (order > 1) {
+eeprom_status_t EEPROM_SetColorOrder(ws2812_color_order_t order) {
+    if (order != WS2812_COLOR_ORDER_GRB && order != WS2812_COLOR_ORDER_RGB) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -328,5 +336,25 @@ eeprom_status_t EEPROM_SetStepPerTeeth(uint8_t step) {
     }
 
     config.step_per_teeth = step;
+    return EEPROM_STATUS_OK;
+}
+
+/**
+ * @brief 获取 EC11 编码器相位配置
+ * @return EC11 编码器相位配置
+ */
+ec11_phase_t EEPROM_GetPhase() { return config.phase; }
+
+/**
+ * @brief 设置 EC11 编码器相位配置
+ * @param phase EC11 编码器相位配置
+ * @return 操作状态
+ */
+eeprom_status_t EEPROM_SetPhase(ec11_phase_t phase) {
+    if (phase != EC11_PHASE_A_LEADS && phase != EC11_PHASE_B_LEADS) {
+        return EEPROM_STATUS_INVALID_PARAM;
+    }
+
+    config.phase = phase;
     return EEPROM_STATUS_OK;
 }

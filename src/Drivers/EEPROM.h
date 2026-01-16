@@ -8,6 +8,8 @@
 #define __EEPROM_H__
 
 #include "../Common.h"
+#include "EC11.h"
+#include "MyWS2812.h"
 #include <Arduino.h>
 
 // 配置参数存储在EEPROM中的起始地址
@@ -32,9 +34,9 @@ typedef struct {
     uint8_t version;  // 版本号 (0)
     uint8_t revision; // 修订号 (1)
 
-    uint8_t led_count;   // LED 灯珠数量 (2)
-    uint8_t color_order; // LED 颜色顺序（0:GRB, 1:RGB） (3)
-    uint8_t brightness;  // 亮度等级（0-4） (4)
+    uint8_t led_count;                // LED 灯珠数量 (2)
+    ws2812_color_order_t color_order; // LED 颜色顺序 (3)
+    uint8_t brightness;               // 亮度等级（0-4） (4)
 
     uint8_t effect_mode;      // LED 灯效模式 (5)
     uint16_t rotate_interval; // LED 流动灯效循环周期（ms） (6-7)
@@ -43,8 +45,9 @@ typedef struct {
     int16_t rotate_cw;      // 顺时针旋转角度 (10-11)
     int16_t rotate_ccw;     // 逆时针旋转角度 (12-13)
     uint8_t step_per_teeth; // 转动一齿触发次数 (14)
+    ec11_phase_t phase;     // EC11 编码器相位配置 (15)
 
-    uint8_t reserved[17]; // 预留空间，用于未来扩展 (15-31)
+    uint8_t reserved[16]; // 预留空间，用于未来扩展 (16-31)
 } eeprom_config_t;        /* 共 32 字节 */
 
 /**
@@ -205,5 +208,18 @@ uint8_t EEPROM_GetStepPerTeeth();
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetStepPerTeeth(uint8_t step);
+
+/**
+ * @brief 获取 EC11 编码器相位配置
+ * @return EC11 编码器相位配置
+ */
+ec11_phase_t EEPROM_GetPhase();
+
+/**
+ * @brief 设置 EC11 编码器相位配置
+ * @param phase EC11 编码器相位配置
+ * @return 操作状态
+ */
+eeprom_status_t EEPROM_SetPhase(ec11_phase_t phase);
 
 #endif /* __EEPROM_H__ */
