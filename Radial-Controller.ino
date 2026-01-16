@@ -160,8 +160,13 @@ void update_config() {
     // 设置 EC11 编码器转动一齿触发次数
     EC11_SetStepPerTeeth(EEPROM_GetStepPerTeeth());
 
+    // 设置 EC11 编码器相位
+    EC11_SetPhase(EEPROM_GetPhase());
+
     // 重新初始化 WS2812 LED
     WS2812_Init(WS2812_PIN, EEPROM_GetLedCount(), EEPROM_GetColorOrder());
+
+    // 设置 WS2812 LED 亮度
     WS2812_SetBrightness(EEPROM_GetBrightness());
 
     // 设置 LED 流动灯效的触发间隔时间
@@ -245,6 +250,9 @@ void process_command(uint8_t *command) {
             USBSerial_println(CMD_SUCCESS);
             USBSerial_flush();
         } else {
+            // 保存失败，从 EEPROM 加载配置参数
+            EEPROM_LoadConfig();
+
             USBSerial_print(CMD_CONFIG_SAVE_SETTINGS);
             USBSerial_println(CMD_FAILED);
             USBSerial_flush();
