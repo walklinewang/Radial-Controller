@@ -45,13 +45,14 @@ class SerialAssistant {
         this.config_params = {
             led_count: { label: '灯珠数量', type: 'slider', min: 1, max: 10, step: 1, value: 4 },
             brightness: { label: '亮度等级', type: 'slider', min: 0, max: 4, step: 1, value: 3, displayValueOffset: 1 },
-            color_order: { label: '颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB' }, { value: 1, label: 'RGB' }], value: 0 },
+            color_order: { label: '颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB (默认)' }, { value: 1, label: 'RGB' }], value: 0 },
             effect_mode: { label: '灯效模式', type: 'select', options: [{ value: 0, label: '默认' }], value: 0 },
-            rotate_interval: { label: '流动灯效循环周期（毫秒）', type: 'number', min: 20, max: 500, value: 50 },
-            fade_duration: { label: '渐变灯效持续时间（毫秒）', type: 'number', min: 20, max: 500, value: 100 },
+            rotate_interval: { label: '流动灯效循环周期 (毫秒)', type: 'number', min: 20, max: 500, value: 50 },
+            fade_duration: { label: '渐变灯效持续时间 (毫秒)', type: 'number', min: 20, max: 500, value: 100 },
             rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
             rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 },
-            step_per_teeth: { label: '每转动一齿触发动作次数', type: 'select', options: [{ value: 1, label: '1' }, { value: 2, label: '2' }], value: 2 }
+            step_per_teeth: { label: '每转动一齿触发动作次数', type: 'select', options: [{ value: 1, label: '1' }, { value: 2, label: '2 (默认)' }], value: 2 },
+            phase: { label: '相位', type: 'select', options: [{ value: 0, label: '正向脉冲 (默认)' }, { value: 1, label: '反向脉冲' }], value: 0 },
         };
 
         this.init_static_elements();
@@ -212,6 +213,13 @@ class SerialAssistant {
             });
         }
 
+        // Select下拉框实时更新
+        if (param.type === 'select') {
+            input.addEventListener('change', (e) => {
+                this.config_params[paramKey].value = parseInt(e.target.value);
+            });
+        }
+
         // 在输入完成（失去焦点）时进行范围验证
         input.addEventListener('blur', (e) => {
             let value = e.target.value;
@@ -254,7 +262,7 @@ class SerialAssistant {
 
         // 分组定义参数
         const ledParams = ['led_count', 'brightness', 'color_order', 'effect_mode', 'rotate_interval', 'fade_duration'];
-        const encoderParams = ['rotate_cw', 'rotate_ccw', 'step_per_teeth'];
+        const encoderParams = ['rotate_cw', 'rotate_ccw', 'step_per_teeth', 'phase'];
 
         // 创建LED相关参数容器
         const ledContainer = document.createElement('div');
@@ -616,7 +624,8 @@ class SerialAssistant {
             rotate_cw: view.getInt16(10, true),
             rotate_ccw: view.getInt16(12, true),
             step_per_teeth: view.getUint8(14),
-            // reserved字段从15-31，共17字节，暂不处理
+            phase: view.getUint8(15),
+            // reserved字段从16-31，共16字节，暂不处理
         };
 
         // 更新参数设置
@@ -649,6 +658,7 @@ class SerialAssistant {
         this.update_config_controls('rotate_cw', this.config_params.rotate_cw.value);
         this.update_config_controls('rotate_ccw', this.config_params.rotate_ccw.value);
         this.update_config_controls('step_per_teeth', this.config_params.step_per_teeth.value);
+        this.update_config_controls('phase', this.config_params.phase.value);
 
         // 显示固件版本
         if (this.firmware_version) {
@@ -853,6 +863,9 @@ class SerialAssistant {
             // step_per_teeth (1字节)
             view.setUint8(offset++, this.config_params.step_per_teeth.value);
 
+            // phase (1字节)
+            view.setUint8(offset++, this.config_params.phase.value);
+
             // reserved字段：使用缓冲区剩余的大小填充
             const reserved_size = buffer.byteLength - offset;
             for (let i = 0; i < reserved_size; i++) {
@@ -875,10 +888,11 @@ class SerialAssistant {
             // 一次性发送完整命令
             await writer.write(full_buffer);
 
-            const response = await this.serial_wait_for_data(500, [this.RESPONSES.SAVE_SETTINGS_SUCCESS]);
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.SAVE_SETTINGS_SUCCESS, this.RESPONSES.SAVE_SETTINGS_FAILED]);
 
             if (response === this.RESPONSES.SAVE_SETTINGS_SUCCESS) {
                 this.show_status('设置已保存到设备', 'success');
+                this.show_custom_alert('保存设置成功', "参数设置已保存到设备");
             } else if (response === this.RESPONSES.SAVE_SETTINGS_FAILED) {
                 this.show_custom_alert('保存设置失败', "检查参数设置是否正确");
             } else {
