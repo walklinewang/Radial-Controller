@@ -7,6 +7,7 @@
 #ifndef __EC11_H__
 #define __EC11_H__
 
+#include "../Common.h"
 #include <Arduino.h>
 
 /**
@@ -72,7 +73,7 @@ void EC11_UpdateStatus();
  * @brief 获取 EC11 编码器旋转方向
  * @return 旋转方向
  */
-ec11_direction_t EC11_GetDirection();
+extern inline ec11_direction_t EC11_GetDirection();
 
 /**
  * @brief 获取 EC11 编码器按键状态
