@@ -1074,12 +1074,17 @@ class SerialAssistant {
 
             // 如果是滑块类型，同时更新数值显示
             if (control.type === 'range') {
-                const value_display = control.nextElementSibling;
-                if (value_display && value_display.className === 'slider-value') {
-                    // 考虑显示偏移量
-                    const param = this.config_params[key];
-                    const display_value = param.displayValueOffset ? value + param.displayValueOffset : value;
-                    value_display.textContent = display_value;
+                const slider_container = control.parentElement;
+
+                if (slider_container && slider_container.className === 'slider-container') {
+                    const value_display = slider_container.querySelector('.slider-value');
+
+                    if (value_display) {
+                        // 考虑显示偏移量
+                        const param = this.config_params[key];
+                        const display_value = param.displayValueOffset ? value + param.displayValueOffset : value;
+                        value_display.textContent = display_value;
+                    }
                 }
             }
         }
