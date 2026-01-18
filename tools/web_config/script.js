@@ -41,18 +41,107 @@ class SerialAssistant {
         this.heartbeat_timer = null; // 心跳定时器
         this.last_heartbeat_time = Date.now();
 
+        // 参数设置常量
+        this.CONFIG_PARAM_CONSTANTS = {
+            // LED 数量配置
+            LED_COUNT_MIN: 1,
+            LED_COUNT_MAX: 10,
+            LED_COUNT_DEFAULT: 4,
+
+            // 亮度等级配置
+            BRIGHTNESS_MIN: 0,
+            BRIGHTNESS_MAX: 4,
+            BRIGHTNESS_DEFAULT: 3,
+
+            // 灯效模式配置
+            EFFECT_MODE_DEFAULT: 0,
+
+            // 流动灯效循环周期配置
+            ROTATE_INTERVAL_MIN: 20,
+            ROTATE_INTERVAL_MAX: 500,
+            ROTATE_INTERVAL_DEFAULT: 40,
+
+            // 渐变灯效持续时间配置
+            FADE_DURATION_MIN: 100,
+            FADE_DURATION_MAX: 300,
+            FADE_DURATION_DEFAULT: 150,
+
+            // 旋转角度配置
+            ROTATE_ANGLE_MIN: 1,
+            ROTATE_ANGLE_MAX: 360,
+            ROTATE_CW_DEFAULT: 10,
+            ROTATE_CCW_DEFAULT: -10,
+
+            // 旋转触发次数配置
+            STEP_PER_TEETH_1X: 1,
+            STEP_PER_TEETH_2X: 2,
+            STEP_PER_TEETH_DEFAULT: 2,
+        };
+
         // 设置参数
         this.config_params = {
-            led_count: { label: '灯珠数量', type: 'slider', min: 1, max: 10, step: 1, value: 4 },
-            brightness: { label: '亮度等级', type: 'slider', min: 0, max: 4, step: 1, value: 3, displayValueOffset: 1 },
-            color_order: { label: '颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB (默认)' }, { value: 1, label: 'RGB' }], value: 0 },
-            effect_mode: { label: '灯效模式', type: 'select', options: [{ value: 0, label: '默认' }], value: 0 },
-            rotate_interval: { label: '流动灯效循环周期 (毫秒)', type: 'number', min: 20, max: 500, value: 50 },
-            fade_duration: { label: '渐变灯效持续时间 (毫秒)', type: 'number', min: 100, max: 300, value: 150 },
-            rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
-            rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 },
-            step_per_teeth: { label: '每转动一齿触发动作次数', type: 'select', options: [{ value: 1, label: '1' }, { value: 2, label: '2 (默认)' }], value: 2 },
-            phase: { label: '相位', type: 'select', options: [{ value: 0, label: '正向脉冲 (默认)' }, { value: 1, label: '反向脉冲' }], value: 0 },
+            led_count: {
+                label: '灯珠数量', type: 'slider',
+                min: this.CONFIG_PARAM_CONSTANTS.LED_COUNT_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.LED_COUNT_MAX, step: 1,
+                value: this.CONFIG_PARAM_CONSTANTS.LED_COUNT_DEFAULT
+            },
+            brightness: {
+                label: '亮度等级', type: 'slider',
+                min: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_MAX, step: 1,
+                value: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_DEFAULT, displayValueOffset: 1
+            },
+            color_order: {
+                label: '颜色顺序', type: 'select',
+                options: [
+                    { value: 0, label: 'GRB (默认)' },
+                    { value: 1, label: 'RGB' }],
+                value: 0
+            },
+            effect_mode: {
+                label: '灯效模式', type: 'select',
+                options: [{ value: 0, label: '默认' }],
+                value: this.CONFIG_PARAM_CONSTANTS.EFFECT_MODE_DEFAULT
+            },
+            rotate_interval: {
+                label: '流动灯效循环周期 (毫秒)', type: 'number',
+                min: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_MAX,
+                value: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_DEFAULT
+            },
+            fade_duration: {
+                label: '渐变灯效持续时间 (毫秒)', type: 'number',
+                min: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_MAX,
+                value: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_DEFAULT
+            },
+            rotate_cw: {
+                label: '顺时针旋转角度', type: 'number',
+                min: this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MAX,
+                value: this.CONFIG_PARAM_CONSTANTS.ROTATE_CW_DEFAULT
+            },
+            rotate_ccw: {
+                label: '逆时针旋转角度', type: 'number',
+                min: -this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MAX,
+                max: -this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MIN,
+                value: this.CONFIG_PARAM_CONSTANTS.ROTATE_CCW_DEFAULT
+            },
+            step_per_teeth: {
+                label: '每转动一齿触发动作次数', type: 'select',
+                options: [
+                    { value: this.CONFIG_PARAM_CONSTANTS.STEP_PER_TEETH_1X, label: '1' },
+                    { value: this.CONFIG_PARAM_CONSTANTS.STEP_PER_TEETH_2X, label: '2 (默认)' }],
+                value: this.CONFIG_PARAM_CONSTANTS.STEP_PER_TEETH_DEFAULT
+            },
+            phase: {
+                label: '相位', type: 'select',
+                options: [
+                    { value: 0, label: '正向脉冲 (默认)' },
+                    { value: 1, label: '反向脉冲' }],
+                value: 0
+            },
         };
 
         this.init_static_elements();
@@ -910,7 +999,7 @@ class SerialAssistant {
 
             if (response === this.RESPONSES.SAVE_SETTINGS_SUCCESS) {
                 this.show_status('设置已保存到设备', 'success');
-                this.show_custom_alert('保存设置成功', "参数设置已保存到设备");
+                this.show_custom_alert('保存设置成功', "参数设置已保存到设备，断开连接后查看效果");
             } else if (response === this.RESPONSES.SAVE_SETTINGS_FAILED) {
                 this.show_custom_alert('保存设置失败', "检查参数设置是否正确");
             } else {
