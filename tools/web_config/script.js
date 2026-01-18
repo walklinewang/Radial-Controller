@@ -33,7 +33,7 @@ class SerialAssistant {
         this.writer = null;
         this.is_connected = false;
         this.connection_check_timer = null;
-        this.received_buffer = '';
+        this.received_buffer = new Uint8Array(0);
         this.data_received_resolver = null;
 
         // 心跳包相关设置
@@ -48,7 +48,7 @@ class SerialAssistant {
             color_order: { label: '颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB (默认)' }, { value: 1, label: 'RGB' }], value: 0 },
             effect_mode: { label: '灯效模式', type: 'select', options: [{ value: 0, label: '默认' }], value: 0 },
             rotate_interval: { label: '流动灯效循环周期 (毫秒)', type: 'number', min: 20, max: 500, value: 50 },
-            fade_duration: { label: '渐变灯效持续时间 (毫秒)', type: 'number', min: 20, max: 500, value: 100 },
+            fade_duration: { label: '渐变灯效持续时间 (毫秒)', type: 'number', min: 100, max: 300, value: 150 },
             rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
             rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 },
             step_per_teeth: { label: '每转动一齿触发动作次数', type: 'select', options: [{ value: 1, label: '1' }, { value: 2, label: '2 (默认)' }], value: 2 },
@@ -381,16 +381,20 @@ class SerialAssistant {
         }
 
         try {
-            const text_decoder = new TextDecoderStream('latin1'); // 使用 latin1 编码确保二进制数据不会被错误解码
-            this.reader = this.port.readable.pipeThrough(text_decoder).getReader();
+            this.reader = this.port.readable.getReader();
 
             while (true) {
                 const { value, done } = await this.reader.read();
                 if (done) break;
 
                 if (value) {
-                    // 将文本数据添加到缓冲区
-                    this.received_buffer += value;
+                    const uint8_array = new Uint8Array(value);
+
+                    // 追加到缓冲区
+                    const new_buffer = new Uint8Array(this.received_buffer.length + uint8_array.length);
+                    new_buffer.set(this.received_buffer);
+                    new_buffer.set(uint8_array, this.received_buffer.length);
+                    this.received_buffer = new_buffer;
                     this.process_received_data();
                 }
             }
@@ -518,7 +522,7 @@ class SerialAssistant {
         }
 
         // 重置接收缓冲区和数据解析器
-        this.received_buffer = '';
+        this.received_buffer = new Uint8Array(0);
         this.data_received_resolver = null;
 
         if (this.port) {
@@ -591,25 +595,16 @@ class SerialAssistant {
     // #region 设备参数数据处理相关方法
     /**
      * 解析二进制参数设置数据
-     * @param {string} data - 包含参数设置数据的字符串
+     * @param {Uint8Array} data - 包含参数设置数据的Uint8Array
      */
     __parse_config_binary_data(data) {
-        // 提取config=后的二进制数据
-        const config_data = data.substring('config='.length);
-
-        if (config_data.length < 32) {
-            this.show_status(`参数设置数据长度不足32字节: ${config_data.length}`, 'warning');
+        if (data.length < 32) {
+            this.show_status(`参数设置数据长度不足32字节: ${data.length}`, 'warning');
             return;
         }
 
-        // 创建DataView来解析二进制数据
-        const buffer = new ArrayBuffer(32);
-        const view = new DataView(buffer);
-
-        // 将字符串转换为二进制数据
-        for (let i = 0; i < 32; i++) {
-            view.setUint8(i, config_data.charCodeAt(i));
-        }
+        // 使用Uint8Array创建DataView
+        const view = new DataView(data.buffer);
 
         // 解析参数设置数据（小端字节序）
         const config = {
@@ -673,20 +668,40 @@ class SerialAssistant {
      * 处理接收到的数据
     */
     process_received_data() {
-        // 分割接收到的数据，按行处理
-        const lines = this.received_buffer.split('\r\n');
-        this.received_buffer = lines.pop(); // 保留最后一行（可能不完整）
+        // 循环处理所有完整的行
+        while (true) {
+            // 查找换行符（LF）
+            let lf_index = -1;
+            for (let i = 0; i < this.received_buffer.length; i++) {
+                if (this.received_buffer[i] === 0x0A) { // LF
+                    lf_index = i;
+                    break;
+                }
+            }
 
-        for (const line of lines) {
-            let processed_line;
+            if (lf_index === -1) {
+                break; // 没有完整的行，退出循环
+            }
+
+            // 提取一行数据（包含CR）
+            const line_buffer = this.received_buffer.slice(0, lf_index + 1);
+
+            // 转换为字符串
+            const line = new TextDecoder('latin1').decode(line_buffer).trim();
 
             if (line) {
+                let processed_line;
+
                 // 检查是否是参数设置数据
                 if (line.includes('=')) {
                     if (line.startsWith('config=')) {
                         // 处理二进制参数设置数据
                         processed_line = this.RESPONSES.LOAD_SETTINGS_SUCCESS;
-                        this.__parse_config_binary_data(line);
+
+                        // 提取config=后的32字节二进制数据
+                        const config_start = 'config='.length;
+                        const config_data = this.received_buffer.slice(config_start, config_start + 32);
+                        this.__parse_config_binary_data(config_data);
                     } else {
                         // 处理普通key=value格式数据
                         processed_line = line.trim();
@@ -722,6 +737,9 @@ class SerialAssistant {
                     this.handle_config_mode_timedout();
                 }
             }
+
+            // 移除已处理的数据
+            this.received_buffer = this.received_buffer.slice(lf_index + 1);
         }
     }
     // #endregion 设备参数数据处理相关方法
