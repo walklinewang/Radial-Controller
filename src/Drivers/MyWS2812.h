@@ -7,9 +7,18 @@
 #ifndef __MYWS2812_H__
 #define __MYWS2812_H__
 
+#include "../Common.h"
 #include "EC11.h"
 #include <Arduino.h>
 #include <WS2812.h>
+
+/**
+ * @brief WS2812 LED 颜色顺序枚举
+ */
+typedef enum {
+    WS2812_COLOR_ORDER_GRB, // 绿 > 红 > 蓝
+    WS2812_COLOR_ORDER_RGB, // 红 > 绿 > 蓝
+} ws2812_color_order_t;
 
 /**
  * @brief WS2812 LED 状态枚举
@@ -33,26 +42,28 @@ typedef struct {
  * @brief WS2812 LED 结构体
  */
 typedef struct {
-    uint8_t pin;       // LED 控制引脚
-    uint8_t led_count; // 灯珠数量
-    uint8_t led_data[30]; // LED 数据缓冲区 (最大支持 10 个 LED，10×3=30 字节)
-    uint8_t color_order;                // 颜色顺序 (0: GRB, 1: RGB)
-    uint8_t brightness;                 // 亮度等级 (0-4)
-    uint16_t data_size;                 // 数据缓冲区大小
+    uint8_t pin;                         // LED 控制引脚
+    uint8_t led_count;                   // 灯珠数量
+    uint8_t led_data_size;               // LED 数据缓冲区实际大小
+    uint8_t led_data[LED_COUNT_MAX * 3]; // LED 数据缓冲区
+    uint8_t last_led_data[LED_COUNT_MAX * 3]; // 最后保存的 LED 颜色数据缓冲区
+    ws2812_color_order_t color_order;   // 颜色顺序
+    uint8_t brightness;                 // 亮度等级
     ws2812_effect_state_t effect_state; // 特效状态
-    uint16_t rotate_interval;           // 流动灯效间隔时间 (毫秒)
-    uint16_t fade_duration;             // 渐变灯效持续时间 (毫秒)
-    uint32_t fade_start_time;           // 渐变灯效开始时间 (毫秒)
+    uint16_t rotate_interval;           // 流动灯效间隔时间
+    uint16_t fade_duration;             // 渐变灯效持续时间
+    uint32_t fade_start_time;           // 渐变灯效开始时间
 } ws2812_t;
 
 /**
  * @brief 初始化 WS2812 LED 驱动
  * @param pin LED 控制引脚
  * @param led_count 灯珠数量
- * @param color_order 颜色顺序 (0: GRB, 1: RGB)
+ * @param color_order 颜色顺序
  * @return 初始化是否成功
  */
-bool WS2812_Init(uint8_t pin, uint8_t led_count, uint8_t color_order);
+bool WS2812_Init(uint8_t pin, uint8_t led_count,
+                 ws2812_color_order_t color_order);
 
 /**
  * @brief 设置单个 LED 的颜色
@@ -66,9 +77,10 @@ void WS2812_SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b);
 /**
  * @brief 设置单个 LED 的颜色（使用颜色结构体）
  * @param index LED 索引
- * @param color 颜色结构体
+ * @param color 颜色结构体指针
  */
-void WS2812_SetPixelColor(uint8_t index, ws2812_color_t color);
+extern inline void WS2812_SetPixelColor(uint8_t index,
+                                        const ws2812_color_t *color);
 
 /**
  * @brief 设置所有 LED 为同一颜色
