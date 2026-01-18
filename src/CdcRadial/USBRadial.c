@@ -31,7 +31,7 @@ __xdata RadialReport radialReport = {.reportId = RADIAL_REPORT_ID,
 // 错误代码全局变量
 __xdata uint8_t lastError = HID_ERR_NONE;
 
-typedef void (*pTaskFn)(void);
+typedef void (*pTaskFn)();
 
 void delayMicroseconds(uint16_t us);
 
@@ -147,7 +147,7 @@ bool Radial_SendData(__data uint8_t button, __data int16_t degree) {
 /**
  * @brief 重置径向控制器报告
  */
-void Radial_ResetReport(void) {
+void Radial_ResetReport() {
     radialReport.reportId = RADIAL_REPORT_ID;
     radialReport.buttonDial = 0;
 }
@@ -156,10 +156,10 @@ void Radial_ResetReport(void) {
  * @brief 获取径向控制器报告指针
  * @return RadialReport* 径向控制器报告指针
  */
-RadialReport *Radial_GetReport(void) { return &radialReport; }
+RadialReport *Radial_GetReport() { return &radialReport; }
 
 /**
  * @brief 获取最后一个错误代码
  * @return uint8_t 错误代码
  */
-uint8_t Radial_GetLastError(void) { return lastError; }
+uint8_t Radial_GetLastError() { return lastError; }

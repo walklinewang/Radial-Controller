@@ -8,9 +8,6 @@
 
 static ec11_t encoder;
 
-// 旋转事件触发阈值
-static int8_t threshold;
-
 /**
  * @brief 初始化 EC11 编码器
  * @param pin_a A 相引脚
@@ -27,7 +24,8 @@ void EC11_Init(uint8_t pin_a, uint8_t pin_b, uint8_t pin_key) {
     encoder.direction = EC11_DIR_NONE;
     encoder.key_state = EC11_KEY_RELEASED;
     encoder.key_changed = false;
-    encoder.step_per_teeth = 2; // 默认转动一齿触发2次
+    encoder.step_per_teeth = STEP_PER_TEETH_2X; // 默认转动一齿触发2次
+    encoder.phase = EC11_PHASE_A_LEADS;         // 默认 A 相超前
 
     // 设置引脚模式
     pinMode(encoder.pin_a, INPUT_PULLUP);
@@ -41,9 +39,28 @@ void EC11_Init(uint8_t pin_a, uint8_t pin_b, uint8_t pin_key) {
 }
 
 /**
+ * @brief 相位转换辅助函数
+ * @details 根据相位配置转换旋转方向
+ *          当硬件配置为 B 相超前时，需要反转旋转方向以统一为 A 相超前的逻辑
+ * @param direction 当前检测到的旋转方向
+ * @return 转换后的旋转方向
+ */
+static ec11_direction_t EC11_ConvertDirection(ec11_direction_t direction) {
+    if (encoder.phase == EC11_PHASE_B_LEADS) {
+        if (direction == EC11_DIR_CW) {
+            return EC11_DIR_CCW;
+        } else if (direction == EC11_DIR_CCW) {
+            return EC11_DIR_CW;
+        }
+    }
+
+    return direction;
+}
+
+/**
  * @brief 更新 EC11 编码器状态
  */
-void EC11_UpdateStatus(void) {
+void EC11_UpdateStatus() {
     static int8_t count = 0;
 
     // 初始化方向为无旋转
@@ -60,7 +77,9 @@ void EC11_UpdateStatus(void) {
     }
 
     // 根据 step_per_teeth 配置判断是否触发旋转事件
-    threshold = (encoder.step_per_teeth == 1) ? 2 : 1;
+    int8_t threshold = (encoder.step_per_teeth == STEP_PER_TEETH_1X)
+                           ? STEP_PER_TEETH_1X_THRESHOLD
+                           : STEP_PER_TEETH_2X_THRESHOLD;
 
     if (count >= threshold) {
         encoder.direction = EC11_DIR_CW; // 顺时针旋转
@@ -69,6 +88,9 @@ void EC11_UpdateStatus(void) {
         encoder.direction = EC11_DIR_CCW; // 逆时针旋转
         count = 0;
     }
+
+    // 应用相位转换，统一转换为 A 相超前的逻辑
+    encoder.direction = EC11_ConvertDirection(encoder.direction);
 
     // 更新 A 相和 B 相的上一次状态
     encoder.last_a_state = current_a_state;
@@ -89,27 +111,32 @@ void EC11_UpdateStatus(void) {
  * @brief 获取 EC11 编码器旋转方向
  * @return 旋转方向
  */
-ec11_direction_t EC11_GetDirection(void) { return encoder.direction; }
+inline ec11_direction_t EC11_GetDirection() { return encoder.direction; }
 
 /**
  * @brief 获取 EC11 编码器按键状态
  * @return 按键状态
  */
-ec11_key_state_t EC11_GetKeyState(void) { return encoder.key_state; }
+ec11_key_state_t EC11_GetKeyState() { return encoder.key_state; }
 
 /**
  * @brief 检查 EC11 编码器按键状态是否变化
  * @return 是否变化
  */
-bool EC11_IsKeyChanged(void) { return encoder.key_changed; }
+bool EC11_IsKeyChanged() { return encoder.key_changed; }
 
 /**
  * @brief 设置 EC11 编码器触发动作的次数
  * @param step 每转动一齿触发动作次数
  */
 void EC11_SetStepPerTeeth(uint8_t step) {
-    // 验证参数有效性
-    if (step == 1 || step == 2) {
+    if (step == STEP_PER_TEETH_1X || step == STEP_PER_TEETH_2X) {
         encoder.step_per_teeth = step;
     }
 }
+
+/**
+ * @brief 设置 EC11 编码器相位配置
+ * @param phase 相位配置
+ */
+void EC11_SetPhase(ec11_phase_t phase) { encoder.phase = phase; }

@@ -32,7 +32,7 @@ volatile __xdata uint8_t UsbConfig;
 
 __code uint8_t *__data pDescr;
 
-inline void NOP_Process(void) {}
+inline void NOP_Process() {}
 
 void USB_EP0_SETUP() {
     __data uint8_t len = USB_RX_LEN;
@@ -387,7 +387,7 @@ void USB_EP1_IN() {
 
 #pragma save
 #pragma nooverlay
-void USBInterrupt(void) { // inline not really working in multiple files in SDCC
+void USBInterrupt() { // inline not really working in multiple files in SDCC
     if (UIF_TRANSFER) {
         // Dispatch to service functions
         __data uint8_t callIndex = USB_INT_ST & MASK_UIS_ENDP;

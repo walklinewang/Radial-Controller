@@ -50,7 +50,7 @@ extern const __code uint8_t *__data pDescr;
 #define EP3_SETUP_Callback NOP_Process
 #define EP4_SETUP_Callback NOP_Process
 
-void USBInterrupt(void);
+void USBInterrupt();
 void USBDeviceCfg();
 void USBDeviceIntCfg();
 void USBDeviceEndPointCfg();

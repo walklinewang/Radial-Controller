@@ -33,7 +33,7 @@ class SerialAssistant {
         this.writer = null;
         this.is_connected = false;
         this.connection_check_timer = null;
-        this.received_buffer = '';
+        this.received_buffer = new Uint8Array(0);
         this.data_received_resolver = null;
 
         // 心跳包相关设置
@@ -41,16 +41,107 @@ class SerialAssistant {
         this.heartbeat_timer = null; // 心跳定时器
         this.last_heartbeat_time = Date.now();
 
+        // 参数设置常量
+        this.CONFIG_PARAM_CONSTANTS = {
+            // LED 数量配置
+            LED_COUNT_MIN: 1,
+            LED_COUNT_MAX: 10,
+            LED_COUNT_DEFAULT: 4,
+
+            // 亮度等级配置
+            BRIGHTNESS_MIN: 0,
+            BRIGHTNESS_MAX: 4,
+            BRIGHTNESS_DEFAULT: 3,
+
+            // 灯效模式配置
+            EFFECT_MODE_DEFAULT: 0,
+
+            // 流动灯效循环周期配置
+            ROTATE_INTERVAL_MIN: 20,
+            ROTATE_INTERVAL_MAX: 500,
+            ROTATE_INTERVAL_DEFAULT: 40,
+
+            // 渐变灯效持续时间配置
+            FADE_DURATION_MIN: 100,
+            FADE_DURATION_MAX: 300,
+            FADE_DURATION_DEFAULT: 150,
+
+            // 旋转角度配置
+            ROTATE_ANGLE_MIN: 1,
+            ROTATE_ANGLE_MAX: 360,
+            ROTATE_CW_DEFAULT: 10,
+            ROTATE_CCW_DEFAULT: -10,
+
+            // 旋转触发次数配置
+            STEP_PER_TEETH_1X: 1,
+            STEP_PER_TEETH_2X: 2,
+            STEP_PER_TEETH_DEFAULT: 2,
+        };
+
         // 设置参数
         this.config_params = {
-            led_count: { label: '灯珠数量', type: 'slider', min: 1, max: 10, step: 1, value: 4 },
-            brightness: { label: '亮度等级', type: 'slider', min: 0, max: 4, step: 1, value: 3, displayValueOffset: 1 },
-            color_order: { label: '颜色顺序', type: 'select', options: [{ value: 0, label: 'GRB' }, { value: 1, label: 'RGB' }], value: 0 },
-            effect_mode: { label: '灯效模式', type: 'select', options: [{ value: 0, label: '默认' }], value: 0 },
-            effect_tick: { label: '灯效循环周期（毫秒）', type: 'number', min: 20, max: 500, value: 50 },
-            rotate_cw: { label: '顺时针旋转角度', type: 'number', min: 1, max: 360, value: 10 },
-            rotate_ccw: { label: '逆时针旋转角度', type: 'number', min: -360, max: -1, value: -10 },
-            step_per_teeth: { label: '每转动一齿触发动作次数', type: 'select', options: [{ value: 1, label: '1' }, { value: 2, label: '2' }], value: 2 }
+            led_count: {
+                label: '灯珠数量', type: 'slider',
+                min: this.CONFIG_PARAM_CONSTANTS.LED_COUNT_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.LED_COUNT_MAX, step: 1,
+                value: this.CONFIG_PARAM_CONSTANTS.LED_COUNT_DEFAULT
+            },
+            brightness: {
+                label: '亮度等级', type: 'slider',
+                min: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_MAX, step: 1,
+                value: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_DEFAULT, displayValueOffset: 1
+            },
+            color_order: {
+                label: '颜色顺序', type: 'select',
+                options: [
+                    { value: 0, label: 'GRB (默认)' },
+                    { value: 1, label: 'RGB' }],
+                value: 0
+            },
+            effect_mode: {
+                label: '灯效模式', type: 'select',
+                options: [{ value: 0, label: '默认' }],
+                value: this.CONFIG_PARAM_CONSTANTS.EFFECT_MODE_DEFAULT
+            },
+            rotate_interval: {
+                label: '流动灯效循环周期 (毫秒)', type: 'number',
+                min: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_MAX,
+                value: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_DEFAULT
+            },
+            fade_duration: {
+                label: '渐变灯效持续时间 (毫秒)', type: 'number',
+                min: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_MAX,
+                value: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_DEFAULT
+            },
+            rotate_cw: {
+                label: '顺时针旋转角度', type: 'number',
+                min: this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MIN,
+                max: this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MAX,
+                value: this.CONFIG_PARAM_CONSTANTS.ROTATE_CW_DEFAULT
+            },
+            rotate_ccw: {
+                label: '逆时针旋转角度', type: 'number',
+                min: -this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MAX,
+                max: -this.CONFIG_PARAM_CONSTANTS.ROTATE_ANGLE_MIN,
+                value: this.CONFIG_PARAM_CONSTANTS.ROTATE_CCW_DEFAULT
+            },
+            step_per_teeth: {
+                label: '每转动一齿触发动作次数', type: 'select',
+                options: [
+                    { value: this.CONFIG_PARAM_CONSTANTS.STEP_PER_TEETH_1X, label: '1' },
+                    { value: this.CONFIG_PARAM_CONSTANTS.STEP_PER_TEETH_2X, label: '2 (默认)' }],
+                value: this.CONFIG_PARAM_CONSTANTS.STEP_PER_TEETH_DEFAULT
+            },
+            phase: {
+                label: '相位', type: 'select',
+                options: [
+                    { value: 0, label: '正向脉冲 (默认)' },
+                    { value: 1, label: '反向脉冲' }],
+                value: 0
+            },
         };
 
         this.init_static_elements();
@@ -211,6 +302,13 @@ class SerialAssistant {
             });
         }
 
+        // Select下拉框实时更新
+        if (param.type === 'select') {
+            input.addEventListener('change', (e) => {
+                this.config_params[paramKey].value = parseInt(e.target.value);
+            });
+        }
+
         // 在输入完成（失去焦点）时进行范围验证
         input.addEventListener('blur', (e) => {
             let value = e.target.value;
@@ -252,8 +350,8 @@ class SerialAssistant {
         this.config_container.innerHTML = '';
 
         // 分组定义参数
-        const ledParams = ['led_count', 'brightness', 'color_order', 'effect_mode', 'effect_tick'];
-        const encoderParams = ['rotate_cw', 'rotate_ccw', 'step_per_teeth'];
+        const ledParams = ['led_count', 'brightness', 'color_order', 'effect_mode', 'rotate_interval', 'fade_duration'];
+        const encoderParams = ['rotate_cw', 'rotate_ccw', 'step_per_teeth', 'phase'];
 
         // 创建LED相关参数容器
         const ledContainer = document.createElement('div');
@@ -310,19 +408,20 @@ class SerialAssistant {
             this.show_status('正在连接串口...', 'success');
 
             const serial_config = {
-                baud_rate: 115200,
-                data_bits: 8,
-                stop_bits: 1,
+                baudRate: 115200,
+                dataBits: 8,
+                stopBits: 1,
                 parity: 'none'
             };
-            this.show_status('串口设置: ' + serial_config);
+            this.show_status('串口设置:');
+            this.show_status(serial_config);
 
             let port = await navigator.serial.requestPort({ filters: [{ usbVendorId: this.USB_VENDOR_ID }] });
 
             await port.open(serial_config);
             this.port = port;
 
-            this.show_status(`串口连接成功 (${serial_config.baud_rate} bps, ${serial_config.data_bits}N${serial_config.stop_bits}, ${serial_config.parity})`, 'success');
+            this.show_status(`串口连接成功 (${serial_config.baudRate} bps, ${serial_config.dataBits}N${serial_config.stopBits}, ${serial_config.parity})`, 'success');
 
             // 开始接收数据
             this.serial_start_reading();
@@ -371,16 +470,20 @@ class SerialAssistant {
         }
 
         try {
-            const text_decoder = new TextDecoderStream('latin1'); // 使用 latin1 编码确保二进制数据不会被错误解码
-            this.reader = this.port.readable.pipeThrough(text_decoder).getReader();
+            this.reader = this.port.readable.getReader();
 
             while (true) {
                 const { value, done } = await this.reader.read();
                 if (done) break;
 
                 if (value) {
-                    // 将文本数据添加到缓冲区
-                    this.received_buffer += value;
+                    const uint8_array = new Uint8Array(value);
+
+                    // 追加到缓冲区
+                    const new_buffer = new Uint8Array(this.received_buffer.length + uint8_array.length);
+                    new_buffer.set(this.received_buffer);
+                    new_buffer.set(uint8_array, this.received_buffer.length);
+                    this.received_buffer = new_buffer;
                     this.process_received_data();
                 }
             }
@@ -447,16 +550,10 @@ class SerialAssistant {
             return;
         }
 
-        // 检查端口是否存在且可读写
-        if (!this.port || !this.port.readable || !this.port.writable) {
+        // 检查端口是否存在
+        if (!this.port) {
             this.handle_serial_connection_lost();
             return;
-        }
-
-        // 检查端口是否处于打开状态
-        if (this.port.readable.locked || this.port.writable.locked) {
-            // 端口被锁定，可能是连接出现问题
-            this.handle_serial_connection_lost();
         }
     }
 
@@ -514,7 +611,7 @@ class SerialAssistant {
         }
 
         // 重置接收缓冲区和数据解析器
-        this.received_buffer = '';
+        this.received_buffer = new Uint8Array(0);
         this.data_received_resolver = null;
 
         if (this.port) {
@@ -587,25 +684,16 @@ class SerialAssistant {
     // #region 设备参数数据处理相关方法
     /**
      * 解析二进制参数设置数据
-     * @param {string} data - 包含参数设置数据的字符串
+     * @param {Uint8Array} data - 包含参数设置数据的Uint8Array
      */
     __parse_config_binary_data(data) {
-        // 提取config=后的二进制数据
-        const config_data = data.substring('config='.length);
-
-        if (config_data.length < 32) {
-            this.show_status(`参数设置数据长度不足32字节: ${config_data.length}`, 'warning');
+        if (data.length < 32) {
+            this.show_status(`参数设置数据长度不足32字节: ${data.length}`, 'warning');
             return;
         }
 
-        // 创建DataView来解析二进制数据
-        const buffer = new ArrayBuffer(32);
-        const view = new DataView(buffer);
-
-        // 将字符串转换为二进制数据
-        for (let i = 0; i < 32; i++) {
-            view.setUint8(i, config_data.charCodeAt(i));
-        }
+        // 使用Uint8Array创建DataView
+        const view = new DataView(data.buffer);
 
         // 解析参数设置数据（小端字节序）
         const config = {
@@ -615,11 +703,13 @@ class SerialAssistant {
             color_order: view.getUint8(3),
             brightness: view.getUint8(4),
             effect_mode: view.getUint8(5),
-            effect_tick: view.getUint16(6, true), // true表示小端字节序
-            rotate_cw: view.getInt16(8, true),
-            rotate_ccw: view.getInt16(10, true),
-            step_per_teeth: view.getUint8(12),
-            // reserved字段从13-31，共20字节，暂不处理
+            rotate_interval: view.getUint16(6, true), // true表示小端字节序
+            fade_duration: view.getUint16(8, true),
+            rotate_cw: view.getInt16(10, true),
+            rotate_ccw: view.getInt16(12, true),
+            step_per_teeth: view.getUint8(14),
+            phase: view.getUint8(15),
+            // reserved字段从16-31，共16字节，暂不处理
         };
 
         // 更新参数设置
@@ -647,37 +737,60 @@ class SerialAssistant {
         this.update_config_controls('color_order', this.config_params.color_order.value);
         this.update_config_controls('brightness', this.config_params.brightness.value);
         this.update_config_controls('effect_mode', this.config_params.effect_mode.value);
-        this.update_config_controls('effect_tick', this.config_params.effect_tick.value);
+        this.update_config_controls('rotate_interval', this.config_params.rotate_interval.value);
+        this.update_config_controls('fade_duration', this.config_params.fade_duration.value);
         this.update_config_controls('rotate_cw', this.config_params.rotate_cw.value);
         this.update_config_controls('rotate_ccw', this.config_params.rotate_ccw.value);
         this.update_config_controls('step_per_teeth', this.config_params.step_per_teeth.value);
+        this.update_config_controls('phase', this.config_params.phase.value);
 
         // 显示固件版本
         if (this.firmware_version) {
             this.firmware_version.textContent = `${config.version}.${config.revision}`;
         }
 
-        this.show_status("CONFIG: " + config);
+        this.show_status('参数设置');
+        this.show_status(config);
     }
 
     /**
      * 处理接收到的数据
     */
     process_received_data() {
-        // 分割接收到的数据，按行处理
-        const lines = this.received_buffer.split('\r\n');
-        this.received_buffer = lines.pop(); // 保留最后一行（可能不完整）
+        // 循环处理所有完整的行
+        while (true) {
+            // 查找换行符（LF）
+            let lf_index = -1;
+            for (let i = 0; i < this.received_buffer.length; i++) {
+                if (this.received_buffer[i] === 0x0A) { // LF
+                    lf_index = i;
+                    break;
+                }
+            }
 
-        for (const line of lines) {
-            let processed_line;
+            if (lf_index === -1) {
+                break; // 没有完整的行，退出循环
+            }
+
+            // 提取一行数据（包含CR）
+            const line_buffer = this.received_buffer.slice(0, lf_index + 1);
+
+            // 转换为字符串
+            const line = new TextDecoder('latin1').decode(line_buffer).trim();
 
             if (line) {
+                let processed_line;
+
                 // 检查是否是参数设置数据
                 if (line.includes('=')) {
                     if (line.startsWith('config=')) {
                         // 处理二进制参数设置数据
                         processed_line = this.RESPONSES.LOAD_SETTINGS_SUCCESS;
-                        this.__parse_config_binary_data(line);
+
+                        // 提取config=后的32字节二进制数据
+                        const config_start = 'config='.length;
+                        const config_data = this.received_buffer.slice(config_start, config_start + 32);
+                        this.__parse_config_binary_data(config_data);
                     } else {
                         // 处理普通key=value格式数据
                         processed_line = line.trim();
@@ -713,6 +826,9 @@ class SerialAssistant {
                     this.handle_config_mode_timedout();
                 }
             }
+
+            // 移除已处理的数据
+            this.received_buffer = this.received_buffer.slice(lf_index + 1);
         }
     }
     // #endregion 设备参数数据处理相关方法
@@ -835,8 +951,12 @@ class SerialAssistant {
             // effect_mode (1字节)
             view.setUint8(offset++, this.config_params.effect_mode.value);
 
-            // effect_tick (2字节，小端)
-            view.setUint16(offset, this.config_params.effect_tick.value, true);
+            // rotate_interval (2字节，小端)
+            view.setUint16(offset, this.config_params.rotate_interval.value, true);
+            offset += 2;
+
+            // fade_duration (2字节，小端)
+            view.setUint16(offset, this.config_params.fade_duration.value, true);
             offset += 2;
 
             // rotate_cw (2字节，小端)
@@ -849,6 +969,9 @@ class SerialAssistant {
 
             // step_per_teeth (1字节)
             view.setUint8(offset++, this.config_params.step_per_teeth.value);
+
+            // phase (1字节)
+            view.setUint8(offset++, this.config_params.phase.value);
 
             // reserved字段：使用缓冲区剩余的大小填充
             const reserved_size = buffer.byteLength - offset;
@@ -872,10 +995,11 @@ class SerialAssistant {
             // 一次性发送完整命令
             await writer.write(full_buffer);
 
-            const response = await this.serial_wait_for_data(500, [this.RESPONSES.SAVE_SETTINGS_SUCCESS]);
+            const response = await this.serial_wait_for_data(500, [this.RESPONSES.SAVE_SETTINGS_SUCCESS, this.RESPONSES.SAVE_SETTINGS_FAILED]);
 
             if (response === this.RESPONSES.SAVE_SETTINGS_SUCCESS) {
                 this.show_status('设置已保存到设备', 'success');
+                this.show_custom_alert('保存设置成功', "参数设置已保存到设备，断开连接后查看效果");
             } else if (response === this.RESPONSES.SAVE_SETTINGS_FAILED) {
                 this.show_custom_alert('保存设置失败', "检查参数设置是否正确");
             } else {
@@ -1032,7 +1156,11 @@ class SerialAssistant {
      * @param {string} type - 状态类型，可选值：'info'（默认）、'success'、'error'
      */
     show_status(message, type = 'info') {
-        console.log(`[${type.toUpperCase()}] ${message}`);
+        if (typeof message === 'object') {
+            console.log(message);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
     }
 
     /**
