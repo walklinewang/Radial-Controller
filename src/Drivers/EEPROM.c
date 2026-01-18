@@ -9,19 +9,19 @@
 static eeprom_config_t config;
 
 /**
- * @brief 获取完整的配置结构体数据
+ * @brief 获取完整的配置结构体数据指针
  * @return 配置结构体指针
  */
-eeprom_config_t *EEPROM_GetConfigData() { return &config; }
+inline eeprom_config_t *EEPROM_GetConfigData() { return &config; }
 
 /**
  * @brief 从 EEPROM 读取配置参数
  * @return 操作状态
  */
 eeprom_status_t EEPROM_LoadConfig() {
-    // 从EEPROM读取配置数据
+    uint8_t *data = (uint8_t *)&config;
+
     for (uint8_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
-        uint8_t *data = (uint8_t *)&config;
         data[i] = eeprom_read_byte(EEPROM_CONFIG_START_ADDRESS + i);
     }
 
@@ -48,12 +48,13 @@ eeprom_status_t EEPROM_SaveConfig() {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
-    // 版本信息写入默认值
+    // 写入版本信息默认值
     eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 0, FIRMWARE_VERSION);
     eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 1, FIRMWARE_REVISION);
 
+    const uint8_t *data = (const uint8_t *)&config;
+
     for (uint8_t i = 2; i < CONFIG_STRUCT_SIZE; i++) {
-        const uint8_t *data = (const uint8_t *)&config;
         eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + i, data[i]);
     }
 
@@ -68,21 +69,19 @@ eeprom_status_t EEPROM_Reset() {
     // 设置默认配置
     config.version = FIRMWARE_VERSION;           // 默认版本号
     config.revision = FIRMWARE_REVISION;         // 默认修订号
-    config.led_count = 4;                        // 默认LED数量
-    config.color_order = WS2812_COLOR_ORDER_GRB; // 默认颜色顺序（GRB）
-    config.brightness = 3;                       // 默认亮度等级
-    config.effect_mode = 0;                      // 默认灯效模式
-    config.rotate_interval = 50; // 默认流动灯效循环周期（50ms）
-    config.fade_duration = 100;  // 默认渐变灯效持续时间（300ms）
-    config.rotate_cw = 10;       // 默认顺时针旋转角度
-    config.rotate_ccw = -10;     // 默认逆时针旋转角度
-    config.step_per_teeth = 2;   // 默认转动一齿触发次数
+    config.led_count = LED_COUNT_DEFAULT;        // 默认LED数量
+    config.color_order = WS2812_COLOR_ORDER_GRB; // 默认颜色顺序
+    config.brightness = BRIGHTNESS_DEFAULT;      // 默认亮度等级
+    config.effect_mode = EFFECT_MODE_DEFAULT;    // 默认灯效模式
+    config.rotate_interval = ROTATE_INTERVAL_DEFAULT; // 默认流动灯效循环周期
+    config.fade_duration = FADE_DURATION_DEFAULT; // 默认渐变灯效持续时间
+    config.rotate_cw = ROTATE_CW_DEFAULT;         // 默认顺时针旋转角度
+    config.rotate_ccw = ROTATE_CCW_DEFAULT;       // 默认逆时针旋转角度
+    config.step_per_teeth = STEP_PER_TEETH_DEFAULT; // 默认转动一齿触发次数
     config.phase = EC11_PHASE_A_LEADS; // 默认 EC11 编码器相位配置
 
-    // 初始化预留空间为 0
-    for (uint8_t i = 0; i < sizeof(config.reserved); i++) {
-        config.reserved[i] = 0;
-    }
+    // 初始化预留空间
+    memset(config.reserved, 0, sizeof(config.reserved));
 
     return EEPROM_STATUS_OK;
 }
@@ -93,7 +92,7 @@ eeprom_status_t EEPROM_Reset() {
  */
 eeprom_status_t EEPROM_Validate() {
     // 检查 LED 数量是否在有效范围内
-    if (config.led_count < 1 || config.led_count > 10) {
+    if (config.led_count < LED_COUNT_MIN || config.led_count > LED_COUNT_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -104,37 +103,42 @@ eeprom_status_t EEPROM_Validate() {
     }
 
     // 检查亮度等级是否在有效范围内
-    if (config.brightness > 5) {
+    if (config.brightness > BRIGHTNESS_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
     // 检查灯效模式是否在有效范围内
-    if (config.effect_mode != 0) { // 简单范围检查，实际可能需要更严格的限制
+    if (config.effect_mode != EFFECT_MODE_DEFAULT) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
     // 检查流动灯效循环周期是否在有效范围内
-    if (config.rotate_interval < 20 || config.rotate_interval > 500) {
+    if (config.rotate_interval < ROTATE_INTERVAL_MIN ||
+        config.rotate_interval > ROTATE_INTERVAL_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
     // 检查渐变灯效持续时间是否在有效范围内
-    if (config.fade_duration < 20 || config.fade_duration > 500) {
+    if (config.fade_duration < FADE_DURATION_MIN ||
+        config.fade_duration > FADE_DURATION_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
     // 检查顺时针旋转角度是否在有效范围内
-    if (config.rotate_cw < 1 || config.rotate_cw > 360) {
+    if (config.rotate_cw < ROTATE_ANGLE_MIN ||
+        config.rotate_cw > ROTATE_ANGLE_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
     // 检查逆时针旋转角度是否在有效范围内
-    if (config.rotate_ccw < -360 || config.rotate_ccw > -1) {
+    if (config.rotate_ccw < -ROTATE_ANGLE_MAX ||
+        config.rotate_ccw > -ROTATE_ANGLE_MIN) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
     // 检查转动一齿触发次数是否在有效范围内
-    if (config.step_per_teeth != 1 && config.step_per_teeth != 2) {
+    if (config.step_per_teeth != STEP_PER_TEETH_1X &&
+        config.step_per_teeth != STEP_PER_TEETH_2X) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -171,7 +175,7 @@ uint8_t EEPROM_GetLedCount() { return config.led_count; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetLedCount(uint8_t count) {
-    if (count < 1 || count > 10) {
+    if (count < LED_COUNT_MIN || count > LED_COUNT_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -201,17 +205,17 @@ eeprom_status_t EEPROM_SetColorOrder(ws2812_color_order_t order) {
 
 /**
  * @brief 获取亮度等级
- * @return 亮度等级（0-4）
+ * @return 亮度等级
  */
 uint8_t EEPROM_GetBrightness() { return config.brightness; }
 
 /**
  * @brief 设置亮度等级
- * @param brightness 亮度等级（0-4）
+ * @param brightness 亮度等级
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetBrightness(uint8_t brightness) {
-    if (brightness > 4) {
+    if (brightness > BRIGHTNESS_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -231,7 +235,7 @@ uint8_t EEPROM_GetEffectMode() { return config.effect_mode; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetEffectMode(uint8_t mode) {
-    if (mode != 1) {
+    if (mode != EFFECT_MODE_DEFAULT) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -251,7 +255,7 @@ uint16_t EEPROM_GetRotateEffectInterval() { return config.rotate_interval; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetRotateEffectInterval(uint16_t interval) {
-    if (interval < 20 || interval > 500) {
+    if (interval < ROTATE_INTERVAL_MIN || interval > ROTATE_INTERVAL_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -271,7 +275,7 @@ uint16_t EEPROM_GetFadeEffectDuration() { return config.fade_duration; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetFadeEffectDuration(uint16_t duration) {
-    if (duration < 20 || duration > 500) {
+    if (duration < FADE_DURATION_MIN || duration > FADE_DURATION_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -291,7 +295,7 @@ int16_t EEPROM_GetRotateCW() { return config.rotate_cw; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetRotateCW(int16_t degrees) {
-    if (degrees < 1 || degrees > 360) {
+    if (degrees < ROTATE_ANGLE_MIN || degrees > ROTATE_ANGLE_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -311,7 +315,7 @@ int16_t EEPROM_GetRotateCCW() { return config.rotate_ccw; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetRotateCCW(int16_t degrees) {
-    if (degrees < -360 || degrees > -1) {
+    if (degrees < -ROTATE_ANGLE_MAX || degrees > -ROTATE_ANGLE_MIN) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
@@ -331,7 +335,7 @@ uint8_t EEPROM_GetStepPerTeeth() { return config.step_per_teeth; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetStepPerTeeth(uint8_t step) {
-    if (step != 1 && step != 2) {
+    if (step != STEP_PER_TEETH_1X && step != STEP_PER_TEETH_2X) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 

@@ -10,7 +10,6 @@
 #include "../Common.h"
 #include "EC11.h"
 #include "MyWS2812.h"
-#include <Arduino.h>
 
 // 配置参数存储在EEPROM中的起始地址
 #define EEPROM_CONFIG_START_ADDRESS 0
@@ -51,10 +50,10 @@ typedef struct {
 } eeprom_config_t;        /* 共 32 字节 */
 
 /**
- * @brief 获取完整的配置结构体数据
+ * @brief 获取完整的配置结构体数据指针
  * @return 配置结构体指针
  */
-eeprom_config_t *EEPROM_GetConfigData();
+extern inline eeprom_config_t *EEPROM_GetConfigData();
 
 /**
  * @brief 从 EEPROM 读取配置参数
