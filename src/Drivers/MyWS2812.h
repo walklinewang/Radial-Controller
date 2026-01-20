@@ -75,6 +75,17 @@ bool WS2812_Init(uint8_t pin, uint8_t led_count,
 void WS2812_SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b);
 
 /**
+ * @brief 获取单个 LED 的颜色
+ * @param index LED 索引
+ * @param led_data LED 数据指针
+ * @param r 指向红色分量存储的指针
+ * @param g 指向绿色分量存储的指针
+ * @param b 指向蓝色分量存储的指针
+ */
+void WS2812_GetPixel(uint8_t index, const uint8_t *led_data, uint8_t *r,
+                     uint8_t *g, uint8_t *b);
+
+/**
  * @brief 设置单个 LED 的颜色（使用颜色结构体）
  * @param index LED 索引
  * @param color 颜色结构体指针

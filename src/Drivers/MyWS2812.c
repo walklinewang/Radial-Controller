@@ -6,7 +6,7 @@
 */
 #include "MyWS2812.h"
 
-static const uint8_t BRIGHT_LEVELS[BRIGHTNESS_MAX + 1] = {0, 3, 5, 9, 15};
+static const uint8_t BRIGHT_LEVELS[BRIGHTNESS_MAX + 1] = {0, 80, 120, 160, 200};
 static ws2812_t ws2812;
 
 /**
@@ -64,6 +64,38 @@ void WS2812_SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 /**
+ * @brief 获取单个 LED 的颜色
+ * @param index LED 索引
+ * @param led_data LED 数据指针
+ * @param r 指向红色分量存储的指针
+ * @param g 指向绿色分量存储的指针
+ * @param b 指向蓝色分量存储的指针
+ */
+void WS2812_GetPixel(uint8_t index, const uint8_t *led_data, uint8_t *r,
+                            uint8_t *g, uint8_t *b) {
+    if (index >= ws2812.led_count) {
+        return;
+    }
+
+    const uint8_t *ptr = led_data + (index * 3);
+
+    switch (ws2812.color_order) {
+    case WS2812_COLOR_ORDER_GRB:
+        *r = ptr[1];
+        *g = ptr[0];
+        *b = ptr[2];
+        break;
+    case WS2812_COLOR_ORDER_RGB:
+        *r = ptr[0];
+        *g = ptr[1];
+        *b = ptr[2];
+        break;
+    default:
+        break;
+    }
+}
+
+/**
  * @brief 设置单个 LED 的颜色
  * @param index LED 索引
  * @param color 颜色结构体指针
@@ -90,6 +122,9 @@ void WS2812_SetAllPixels(uint8_t r, uint8_t g, uint8_t b) {
  * @brief 清空所有 LED 数据，并立即灭灯
  */
 void WS2812_Clear() {
+    // 添加短暂延时确保硬件稳定，避免时序冲突
+    delayMicroseconds(10);
+
     memset(ws2812.led_data, 0, ws2812.led_data_size);
     WS2812_Show();
 }
@@ -142,33 +177,33 @@ void WS2812_Show() {
  * @param offset 颜色偏移量
  */
 static void WS2812_FillRotationEffectColor(uint8_t index, uint8_t offset) {
-    uint8_t color_segment;
-    ws2812_color_t color;
+    uint8_t r, g, b;
 
-    color_segment = offset / 10; // 计算颜色段索引（0~2）
-    offset %= 10;                // 计算段内偏移（0-9）
-    offset *= BRIGHT_LEVELS[ws2812.brightness];
-
-    // 根据颜色段设置 RGB 值，实现平滑渐变
-    switch (color_segment) {
-    case 0: // 红 → 绿渐变
-        color.r = BRIGHT_LEVELS[ws2812.brightness] * 10 - offset;
-        color.g = offset;
-        color.b = 0;
-        break;
-    case 1: // 绿 → 蓝渐变
-        color.g = BRIGHT_LEVELS[ws2812.brightness] * 10 - offset;
-        color.b = offset;
-        color.r = 0;
-        break;
-    default: // 蓝 → 红渐变
-        color.b = BRIGHT_LEVELS[ws2812.brightness] * 10 - offset;
-        color.r = offset;
-        color.g = 0;
-        break;
+    // 60份分段：每个颜色渐变阶段分为20份，步长12
+    if (offset < 20) {
+        // 红 → 绿渐变 (0-19)
+        r = 255 - offset * 12;
+        g = offset * 12;
+        b = 0;
+    } else if (offset < 40) {
+        // 绿 → 蓝渐变 (20-39)
+        g = 255 - (offset - 20) * 12;
+        b = (offset - 20) * 12;
+        r = 0;
+    } else {
+        // 蓝 → 红渐变 (40-59)
+        b = 255 - (offset - 40) * 12;
+        r = (offset - 40) * 12;
+        g = 0;
     }
 
-    WS2812_SetPixelColor(index, &color);
+    // 应用亮度调整
+    uint8_t brightness = BRIGHT_LEVELS[ws2812.brightness];
+    r = (r * brightness) / 255;
+    g = (g * brightness) / 255;
+    b = (b * brightness) / 255;
+
+    WS2812_SetPixel(index, r, g, b);
 }
 
 /**
@@ -195,14 +230,14 @@ void WS2812_ShowRotationEffect(ec11_direction_t direction) {
 
     // 如果 LED 与 EC11 编码器在电路板同侧，则需要调整计数方向为 EC11_DIR_CW
     if (direction == EC11_DIR_CCW) {
-        count = (count < 29) ? count + 1 : 0;
+        count = (count < 59) ? count + 1 : 0;
     } else {
-        count = (count > 0) ? count - 1 : 29;
+        count = (count > 0) ? count - 1 : 59;
     }
 
     for (uint8_t index = 0; index < ws2812.led_count; index++) {
         WS2812_FillRotationEffectColor(
-            index, (count + (index * 30) / ws2812.led_count) % 30);
+            index, (count + (index * 60) / ws2812.led_count) % 60);
     }
 
     WS2812_Show();
@@ -246,20 +281,21 @@ void WS2812_ShowFadeEffect() {
     uint32_t elapsed_time = millis() - ws2812.fade_start_time;
 
     // 计算渐变进度
-    uint16_t progress = elapsed_time * 255 / ws2812.fade_duration;
+    uint16_t progress = (elapsed_time * 255) / ws2812.fade_duration;
 
     // 确保进度不超过255
     if (progress > 255) {
         progress = 255;
     }
 
+    uint8_t target_r, target_g, target_b;
+
     // 根据当前状态计算颜色
     if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_IN) {
         // 渐亮：从 0 到最后保存的颜色
         for (uint8_t i = 0; i < ws2812.led_count; i++) {
-            uint8_t target_r = ws2812.last_led_data[i * 3 + 0];
-            uint8_t target_g = ws2812.last_led_data[i * 3 + 1];
-            uint8_t target_b = ws2812.last_led_data[i * 3 + 2];
+            WS2812_GetPixel(i, ws2812.last_led_data, &target_r, &target_g,
+                            &target_b);
 
             // 计算渐变颜色
             uint8_t r = (uint8_t)((target_r * progress) >> 8);
@@ -267,14 +303,12 @@ void WS2812_ShowFadeEffect() {
             uint8_t b = (uint8_t)((target_b * progress) >> 8);
 
             WS2812_SetPixel(i, r, g, b);
-            WS2812_Show();
         }
     } else if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_OUT) {
         // 渐暗：从最后保存的颜色到 0
         for (uint8_t i = 0; i < ws2812.led_count; i++) {
-            uint8_t target_r = ws2812.last_led_data[i * 3 + 0];
-            uint8_t target_g = ws2812.last_led_data[i * 3 + 1];
-            uint8_t target_b = ws2812.last_led_data[i * 3 + 2];
+            WS2812_GetPixel(i, ws2812.last_led_data, &target_r, &target_g,
+                            &target_b);
 
             // 计算渐变颜色
             uint8_t r = (uint8_t)((target_r * (255 - progress)) >> 8);
@@ -282,16 +316,17 @@ void WS2812_ShowFadeEffect() {
             uint8_t b = (uint8_t)((target_b * (255 - progress)) >> 8);
 
             WS2812_SetPixel(i, r, g, b);
-            WS2812_Show();
         }
     }
+
+    WS2812_Show();
 
     // 检查是否完成渐变
     if (elapsed_time >= ws2812.fade_duration) {
         if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_IN) {
-            // 渐亮完成，切换为流动灯效
             ws2812.effect_state = WS2812_EFFECT_STATE_ROTATION;
         } else if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_OUT) {
+            // WS2812_Clear();
         }
     }
 }
