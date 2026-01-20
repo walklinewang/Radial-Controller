@@ -90,7 +90,7 @@ class SerialAssistant {
                 label: '亮度等级', type: 'slider',
                 min: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_MIN,
                 max: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_MAX, step: 1,
-                value: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_DEFAULT, displayValueOffset: 1
+                value: this.CONFIG_PARAM_CONSTANTS.BRIGHTNESS_DEFAULT
             },
             color_order: {
                 label: '颜色顺序', type: 'select',
@@ -252,9 +252,7 @@ class SerialAssistant {
             // 创建数值显示
             const valueDisplay = document.createElement('span');
             valueDisplay.className = 'slider-value';
-            // 考虑显示偏移量（用于亮度等级等需要显示值与实际存储值不同的情况）
-            const displayValue = param.displayValueOffset ? param.value + param.displayValueOffset : param.value;
-            valueDisplay.textContent = displayValue;
+            valueDisplay.textContent = param.value;
 
             sliderContainer.appendChild(input);
             sliderContainer.appendChild(valueDisplay);
@@ -293,9 +291,7 @@ class SerialAssistant {
                 // 更新滑块的数值显示
                 const valueDisplay = e.target.nextElementSibling;
                 if (valueDisplay && valueDisplay.className === 'slider-value') {
-                    // 考虑显示偏移量
-                    const displayValue = param.displayValueOffset ? value + param.displayValueOffset : value;
-                    valueDisplay.textContent = displayValue;
+                    valueDisplay.textContent = value;
                 }
                 // 更新参数值
                 this.config_params[paramKey].value = value;
@@ -1080,10 +1076,7 @@ class SerialAssistant {
                     const value_display = slider_container.querySelector('.slider-value');
 
                     if (value_display) {
-                        // 考虑显示偏移量
-                        const param = this.config_params[key];
-                        const display_value = param.displayValueOffset ? value + param.displayValueOffset : value;
-                        value_display.textContent = display_value;
+                        value_display.textContent = value;
                     }
                 }
             }
