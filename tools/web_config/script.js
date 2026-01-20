@@ -572,6 +572,7 @@ class SerialAssistant {
                 this.show_status(`释放资源失败: ${error.message}`, 'warning');
             }
         }
+
         return null;
     }
 
@@ -858,8 +859,9 @@ class SerialAssistant {
                 throw new Error(`意外响应: ${response}`);
             }
         } catch (error) {
-            this.writer = this.serial_release_resource(this.writer);
             this.show_status(`启用参数设置模式失败: ${error.message}`, 'error');
+        } finally {
+            this.writer = this.serial_release_resource(this.writer);
         }
     }
 
@@ -884,6 +886,8 @@ class SerialAssistant {
             }
         } catch (error) {
             this.show_status(`加载参数设置失败: ${error.message}`, 'error');
+        } finally {
+            this.writer = this.serial_release_resource(this.writer);
         }
     }
 
@@ -1002,8 +1006,9 @@ class SerialAssistant {
                 throw new Error(`意外响应: ${response}`);
             }
         } catch (error) {
-            this.writer = this.serial_release_resource(this.writer);
             this.show_status(`保存设置失败: ${error.message}`, 'error');
+        } finally {
+            this.writer = this.serial_release_resource(this.writer);
         }
     }
 
@@ -1023,6 +1028,7 @@ class SerialAssistant {
 
             if (response === this.RESPONSES.RESET_SETTINGS_SUCCESS) {
                 this.show_status('参数设置已重置为默认值', 'success');
+                this.show_custom_alert('重置设置成功', "参数设置已重置为默认值");
 
                 // 加载参数设置
                 await this.config_load_settings();
@@ -1031,6 +1037,8 @@ class SerialAssistant {
             }
         } catch (error) {
             this.show_status(`重置参数设置失败: ${error.message}`, 'error');
+        } finally {
+            this.writer = this.serial_release_resource(this.writer);
         }
     }
 
@@ -1051,6 +1059,8 @@ class SerialAssistant {
             this.last_heartbeat_time = Date.now();
         } catch (error) {
             this.show_status(`发送心跳请求失败: ${error.message}`, 'error');
+        } finally {
+            this.writer = this.serial_release_resource(this.writer);
         }
     }
     // #endregion 设备参数设置相关方法
