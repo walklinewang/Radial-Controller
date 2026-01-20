@@ -36,12 +36,13 @@
 void update_config();
 void process_ec11_operation();
 void process_heartbeat();
+void process_serial_data();
 void process_commands(uint8_t *command);
 
 // 接收缓冲区，用于存储从串口接收的命令
 uint8_t receive_buf[50];
 uint8_t receive_ptr = 0;
-bool received = false;
+bool data_received = false;
 
 // 上一次编码器旋转方向
 ec11_direction_t last_direction = EC11_DIR_CW;
@@ -66,55 +67,13 @@ void setup() {
 }
 
 void loop() {
-    bool is_save_command = false;
+    process_serial_data();
 
-    while (USBSerial_available()) {
-        uint8_t serial_char = USBSerial_read();
-
-        // 针对 save_settings 命令的特殊处理
-        if (receive_ptr >= strlen(CMD_CONFIG_SAVE_SETTINGS_PREFIX)) {
-            is_save_command =
-                (memcmp(receive_buf, CMD_CONFIG_SAVE_SETTINGS_PREFIX,
-                        strlen(CMD_CONFIG_SAVE_SETTINGS_PREFIX)) == 0);
-        }
-
-        if (is_save_command) {
-            receive_buf[receive_ptr] = serial_char;
-            receive_ptr++;
-
-            // save_settings=命令格式：14字节前缀 + 30字节数据 + 1字节换行符
-            if (receive_ptr >=
-                strlen(CMD_CONFIG_SAVE_SETTINGS_PREFIX) + 30 + 1) {
-                receive_buf[receive_ptr] = '\0';
-                received = true;
-                break;
-            }
-        }
-        // 对于其他命令，使用换行符或回车符作为结束标记
-        else if ((serial_char == '\n') || (serial_char == '\r')) {
-            receive_buf[receive_ptr] = '\0';
-
-            if (receive_ptr > 0) {
-                received = true;
-                break;
-            }
-        } else {
-            receive_buf[receive_ptr] = serial_char;
-            receive_ptr++;
-
-            if (receive_ptr >= sizeof(receive_buf) - 1) {
-                receive_buf[receive_ptr] = '\0';
-                received = true;
-                break;
-            }
-        }
-    }
-
-    if (received) {
+    if (data_received) {
         process_commands(receive_buf);
 
         receive_ptr = 0;
-        received = false;
+        data_received = false;
     }
 
     if (is_config_mode) {
@@ -125,10 +84,14 @@ void loop() {
     process_ec11_operation();
 
     // 根据当前灯效状态执行对应的灯效
-    if (WS2812_GetEffectState() == WS2812_EFFECT_STATE_ROTATION) {
-        WS2812_ShowRotationEffect(last_direction);
+    if (WS2812_GetBrightness() == 0) {
+        WS2812_Clear();
     } else {
-        WS2812_ShowFadeEffect();
+        if (WS2812_GetEffectState() == WS2812_EFFECT_STATE_ROTATION) {
+            WS2812_ShowRotationEffect(last_direction);
+        } else {
+            WS2812_ShowFadeEffect();
+        }
     }
 }
 
@@ -155,6 +118,9 @@ void update_config() {
     WS2812_SetFadeEffectDuration(EEPROM_GetFadeEffectDuration());
 }
 
+/**
+ * @brief 处理 EC11 编码器操作
+ */
 void process_ec11_operation() {
     // 更新 EC11 编码器状态
     EC11_UpdateStatus();
@@ -188,6 +154,7 @@ void process_ec11_operation() {
         }
     }
 }
+
 /**
  * @brief 处理心跳包命令
  */
@@ -199,6 +166,55 @@ void process_heartbeat() {
 
         USBSerial_println(CMD_CONFIG_MODE_TIMEOUT);
         USBSerial_flush();
+    }
+}
+
+/**
+ * @brief 处理串口数据
+ */
+void process_serial_data() {
+    bool is_save_command = false;
+
+    while (USBSerial_available()) {
+        uint8_t serial_char = USBSerial_read();
+
+        // 针对 save_settings 命令的特殊处理
+        if (receive_ptr >= strlen(CMD_CONFIG_SAVE_SETTINGS_PREFIX)) {
+            is_save_command =
+                (memcmp(receive_buf, CMD_CONFIG_SAVE_SETTINGS_PREFIX,
+                        strlen(CMD_CONFIG_SAVE_SETTINGS_PREFIX)) == 0);
+        }
+
+        if (is_save_command) {
+            receive_buf[receive_ptr] = serial_char;
+            receive_ptr++;
+
+            // save_settings=命令格式：14字节前缀 + 30字节数据 + 1字节换行符
+            if (receive_ptr >=
+                strlen(CMD_CONFIG_SAVE_SETTINGS_PREFIX) + 30 + 1) {
+                receive_buf[receive_ptr] = '\0';
+                data_received = true;
+                break;
+            }
+        }
+        // 对于其他命令，使用换行符或回车符作为结束标记
+        else if ((serial_char == '\n') || (serial_char == '\r')) {
+            receive_buf[receive_ptr] = '\0';
+
+            if (receive_ptr > 0) {
+                data_received = true;
+                break;
+            }
+        } else {
+            receive_buf[receive_ptr] = serial_char;
+            receive_ptr++;
+
+            if (receive_ptr >= sizeof(receive_buf) - 1) {
+                receive_buf[receive_ptr] = '\0';
+                data_received = true;
+                break;
+            }
+        }
     }
 }
 
@@ -217,7 +233,6 @@ void process_commands(uint8_t *command) {
         USBSerial_println(CMD_SUCCESS_SUFFIX);
         USBSerial_flush();
     } else if (strcmp((const uint8_t *)command, CMD_CONFIG_HEARTBEAT) == 0) {
-        // 接收网页端发送的心跳包
         if (is_config_mode) {
             heartbeat_last_received = millis(); // 更新最后收到心跳的时间戳
         }
@@ -251,9 +266,6 @@ void process_commands(uint8_t *command) {
 
         // 保存配置到EEPROM
         if (EEPROM_SaveConfig() == EEPROM_STATUS_OK) {
-            // 执行配置更新后的初始化操作
-            update_config();
-
             USBSerial_print(CMD_CONFIG_SAVE_SETTINGS);
             USBSerial_println(CMD_SUCCESS_SUFFIX);
             USBSerial_flush();
@@ -265,6 +277,9 @@ void process_commands(uint8_t *command) {
             USBSerial_println(CMD_FAILED_SUFFIX);
             USBSerial_flush();
         }
+
+        // 执行配置更新后的初始化操作
+        update_config();
     } else if (strcmp((const uint8_t *)command, CMD_CONFIG_RESET_SETTINGS) ==
                0) {
         EEPROM_Reset();
