@@ -3,7 +3,7 @@
 
 /* 固件版本号和修订号 */
 #define FIRMWARE_VERSION 0
-#define FIRMWARE_REVISION 2
+#define FIRMWARE_REVISION 3
 
 /* EC11 编码器引脚定义 */
 #define EC11_PIN_A 33
