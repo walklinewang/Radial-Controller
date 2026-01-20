@@ -1,16 +1,16 @@
 # Radial Controller
 
-<img src="https://img.shields.io/badge/-Arduino-00979D?style=flat&logo=Arduino&logoColor=white" />  <img src="https://img.shields.io/badge/Licence-MIT-green.svg?logo=github" />
+<img src="https://img.shields.io/badge/-Arduino-00979D?style=plastic&logo=Arduino&logoColor=white" />  <img src="https://img.shields.io/badge/Licence-MIT-green.svg?style=plastic&logo=github" />  <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=plastic&logo=windows" />
 
 ## 项目概述
 
-Radial Controller 是一款基于 CH5xx 系列芯片开发的 USB 径向控制器（旋转编码器），通过标准 USB HID 协议与计算机通信，可作为系统级径向控制器使用，支持多种操作系统和应用程序。
+Radial Controller 是一款基于 CH5xx 系列芯片开发的 USB 径向控制器（旋转编码器），通过 Microsoft Radial Controller 协议与 Windows 系统通信，可作为系统级径向控制器使用。
 
 该设备采用模块化设计，包含硬件驱动、USB 通信和灯效控制等功能，支持通过 Web 界面进行参数配置，具有良好的扩展性和易用性。
 
 ### 主要功能特性
 
-- **USB HID 径向控制器**：通过标准 HID 协议与计算机通信，支持 Windows、macOS、Linux 等主流操作系统
+- **Microsoft Radial Controller 协议**：通过微软径向控制器协议与 Windows 系统通信，提供系统级径向控制功能
 - **EC11 编码器支持**：支持旋转检测和按钮功能，可配置旋转灵敏度
 - **WS2812 灯效控制**：内置 WS2812 灯带驱动，支持多种灯效模式和亮度调节
 - **按键渐亮/渐暗特效**：按下编码器按钮时，LED 渐暗；释放时，LED 渐亮，提升用户体验
@@ -20,11 +20,7 @@ Radial Controller 是一款基于 CH5xx 系列芯片开发的 USB 径向控制�
 
 ### 使用方法
 
-Radial Controller 作为标准 USB HID 设备，可以在系统级别使用，支持多种操作系统：
-
-- **Windows**：支持 Windows 10/11，可在系统设置中配置径向控制器功能
-- **macOS**：支持 macOS 10.15+，可在系统偏好设置中配置
-- **Linux**：支持主流 Linux 发行版，需要安装相应驱动
+Radial Controller 通过 Microsoft Radial Controller 协议与 Windows 系统通信，仅支持 Windows 10/11，可在系统设置中配置径向控制器功能。
 
 #### 基本操作
 
@@ -55,7 +51,7 @@ Radial Controller 支持通过 CDC 串口进行命令控制和调试。这些命
 
 ## 编译上传固件
 
-### 使用 Arduino IDE
+### 1. 使用 Arduino IDE
 
 1. **安装 ch55xduino 库**：
 
@@ -86,7 +82,7 @@ Radial Controller 支持通过 CDC 串口进行命令控制和调试。这些命
     - 点击 Arduino IDE 中的 "验证" 按钮编译代码
     - 点击 "上传" 按钮将代码烧录到芯片
 
-### 使用 WCH 官方工具
+### 2. 使用 WCH 官方工具
 
 1. **下载 WCH 官方工具**：
 
@@ -141,13 +137,13 @@ Radial Controller 提供了基于 Web 的配置工具，可通过浏览器进行
 
 | 参数 | 说明 | 范围 | 默认值 |
 |:---:|------|:---:|:-----:|
-| `led_count` | WS2812 灯珠数量 | 1-10 | 4 |
-| `brightness` | 亮度等级 | 1-5 | 4 |
+| `led_count` | WS2812 灯珠数量 | 1~10 | 4 |
+| `brightness` | 亮度等级 | 0~4 | 3 |
 | `color_order` | 颜色顺序 | GRB/RGB | GRB |
 | `effect_mode` | 灯效模式 | 0 | 0 |
-| `rotate_interval` | 流动灯效循环周期（ms） | 20-500 | 40 |
-| `fade_duration` | 渐变灯效持续时间（ms） | 100-300 | 150 |
-| `step_per_teeth` | 旋转灵敏度（每齿触发次数） | 1-2 | 2 |
+| `rotate_interval` | 流动灯效循环周期（ms） | 20~500 | 40 |
+| `fade_duration` | 渐变灯效持续时间（ms） | 100~300 | 150 |
+| `step_per_teeth` | 旋转灵敏度（每齿触发次数） | 1~2 | 2 |
 | `rotate_cw` | 顺时针旋转角度（度） | 1~360 | 10 |
 | `rotate_ccw` | 逆时针旋转角度（度） | -360~-1 | -10 | 
 
