@@ -25,7 +25,7 @@ eeprom_status_t EEPROM_LoadConfig() {
         data[i] = eeprom_read_byte(EEPROM_CONFIG_START_ADDRESS + i);
     }
 
-    // 验证配置数据的有效性
+    // 验证配置数据有效性
     if (EEPROM_Validate() != EEPROM_STATUS_OK) {
         // 配置数据无效，重置为默认值
         if (EEPROM_Reset() == EEPROM_STATUS_OK) {
@@ -43,7 +43,7 @@ eeprom_status_t EEPROM_LoadConfig() {
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SaveConfig() {
-    // 验证配置数据的有效性
+    // 验证配置数据有效性
     if (EEPROM_Validate() != EEPROM_STATUS_OK) {
         return EEPROM_STATUS_INVALID_PARAM;
     }
@@ -74,7 +74,7 @@ eeprom_status_t EEPROM_Reset() {
     config.brightness = BRIGHTNESS_DEFAULT;      // 默认亮度等级
     config.effect_mode = EFFECT_MODE_DEFAULT;    // 默认灯效模式
     config.rotate_interval = ROTATE_INTERVAL_DEFAULT; // 默认流动灯效循环周期
-    config.fade_duration = FADE_DURATION_DEFAULT; // 默认渐变灯效持续时间
+    config.fade_duration = FADE_DURATION_DEFAULT; // 默认渐变灯效持续时长
     config.rotate_cw = ROTATE_CW_DEFAULT;         // 默认顺时针旋转角度
     config.rotate_ccw = ROTATE_CCW_DEFAULT;       // 默认逆时针旋转角度
     config.step_per_teeth = STEP_PER_TEETH_DEFAULT; // 默认转动一齿触发次数
@@ -87,7 +87,7 @@ eeprom_status_t EEPROM_Reset() {
 }
 
 /**
- * @brief 验证配置参数的有效性
+ * @brief 验证配置参数有效性
  * @return 操作状态
  */
 eeprom_status_t EEPROM_Validate() {
@@ -118,7 +118,7 @@ eeprom_status_t EEPROM_Validate() {
         return EEPROM_STATUS_INVALID_PARAM;
     }
 
-    // 检查渐变灯效持续时间是否在有效范围内
+    // 检查渐变灯效持续时长是否在有效范围内
     if (config.fade_duration < FADE_DURATION_MIN ||
         config.fade_duration > FADE_DURATION_MAX) {
         return EEPROM_STATUS_INVALID_PARAM;
@@ -244,14 +244,14 @@ eeprom_status_t EEPROM_SetEffectMode(uint8_t mode) {
 }
 
 /**
- * @brief 获取 LED 流动灯效循环周期
- * @return LED 流动灯效循环周期（ms）
+ * @brief 获取 LED 流动灯效触发间隔
+ * @return 触发间隔（毫秒）
  */
 uint16_t EEPROM_GetRotateEffectInterval() { return config.rotate_interval; }
 
 /**
- * @brief 设置 LED 流动灯效循环周期
- * @param interval LED 流动灯效循环周期（ms）
+ * @brief 设置 LED 流动灯效触发间隔
+ * @param interval 触发间隔（毫秒）
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetRotateEffectInterval(uint16_t interval) {
@@ -264,14 +264,14 @@ eeprom_status_t EEPROM_SetRotateEffectInterval(uint16_t interval) {
 }
 
 /**
- * @brief 获取 LED 渐变灯效持续时间
- * @return LED 渐变灯效持续时间（ms）
+ * @brief 获取 LED 渐变灯效持续时长
+ * @return 持续时长（毫秒）
  */
 uint16_t EEPROM_GetFadeEffectDuration() { return config.fade_duration; }
 
 /**
- * @brief 设置 LED 渐变灯效持续时间
- * @param duration LED 渐变灯效持续时间（ms）
+ * @brief 设置 LED 渐变灯效持续时长
+ * @param duration 持续时长（毫秒）
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetFadeEffectDuration(uint16_t duration) {
@@ -324,13 +324,13 @@ eeprom_status_t EEPROM_SetRotateCCW(int16_t degrees) {
 }
 
 /**
- * @brief 获取触发动作的次数
+ * @brief 获取触发动作次数
  * @return EC11 编码器每转动一齿触发动作次数
  */
 uint8_t EEPROM_GetStepPerTeeth() { return config.step_per_teeth; }
 
 /**
- * @brief 设置触发动作的次数
+ * @brief 设置触发动作次数
  * @param step EC11 编码器每转动一齿触发动作次数
  * @return 操作状态
  */

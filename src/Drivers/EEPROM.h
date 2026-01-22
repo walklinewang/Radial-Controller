@@ -38,8 +38,8 @@ typedef struct {
     uint8_t brightness;               // 亮度等级（0-4） (4)
 
     uint8_t effect_mode;      // LED 灯效模式 (5)
-    uint16_t rotate_interval; // LED 流动灯效循环周期（ms） (6-7)
-    uint16_t fade_duration;   // LED 渐变灯效持续时间（ms） (8-9)
+    uint16_t rotate_interval; // LED 流动灯效触发间隔 (6-7)
+    uint16_t fade_duration;   // LED 渐变灯效持续时长 (8-9)
 
     int16_t rotate_cw;      // 顺时针旋转角度 (10-11)
     int16_t rotate_ccw;     // 逆时针旋转角度 (12-13)
@@ -74,7 +74,7 @@ eeprom_status_t EEPROM_SaveConfig();
 eeprom_status_t EEPROM_Reset();
 
 /**
- * @brief 验证配置参数的有效性
+ * @brief 验证配置参数有效性
  * @return 操作状态
  */
 eeprom_status_t EEPROM_Validate();
@@ -144,27 +144,27 @@ uint8_t EEPROM_GetEffectMode();
 eeprom_status_t EEPROM_SetEffectMode(uint8_t mode);
 
 /**
- * @brief 获取 LED 流动灯效循环周期
- * @return LED 流动灯效循环周期（ms）
+ * @brief 获取 LED 流动灯效触发间隔
+ * @return 触发间隔（毫秒）
  */
 uint16_t EEPROM_GetRotateEffectInterval();
 
 /**
- * @brief 设置 LED 流动灯效循环周期
- * @param interval LED 流动灯效循环周期（ms）
+ * @brief 设置 LED 流动灯效触发间隔
+ * @param interval 触发间隔（毫秒）
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetRotateEffectInterval(uint16_t interval);
 
 /**
- * @brief 获取 LED 渐变灯效持续时间
- * @return LED 渐变灯效持续时间（ms）
+ * @brief 获取 LED 渐变灯效持续时长
+ * @return 持续时长（毫秒）
  */
 uint16_t EEPROM_GetFadeEffectDuration();
 
 /**
- * @brief 设置 LED 渐变灯效持续时间
- * @param duration LED 渐变灯效持续时间（ms）
+ * @brief 设置 LED 渐变灯效持续时长
+ * @param duration 持续时长（毫秒）
  * @return 操作状态
  */
 eeprom_status_t EEPROM_SetFadeEffectDuration(uint16_t duration);
@@ -196,13 +196,13 @@ int16_t EEPROM_GetRotateCCW();
 eeprom_status_t EEPROM_SetRotateCCW(int16_t degrees);
 
 /**
- * @brief 获取触发动作的次数
+ * @brief 获取触发动作次数
  * @return EC11 编码器每转动一齿触发动作次数
  */
 uint8_t EEPROM_GetStepPerTeeth();
 
 /**
- * @brief 设置触发动作的次数
+ * @brief 设置触发动作次数
  * @param step EC11 编码器每转动一齿触发动作次数
  * @return 操作状态
  */

@@ -61,7 +61,7 @@ class SerialAssistant {
             ROTATE_INTERVAL_MAX: 500,
             ROTATE_INTERVAL_DEFAULT: 40,
 
-            // 渐变灯效持续时间配置
+            // 渐变灯效持续时长配置
             FADE_DURATION_MIN: 100,
             FADE_DURATION_MAX: 300,
             FADE_DURATION_DEFAULT: 150,
@@ -105,13 +105,13 @@ class SerialAssistant {
                 value: this.CONFIG_PARAM_CONSTANTS.EFFECT_MODE_DEFAULT
             },
             rotate_interval: {
-                label: '流动灯效循环周期 (毫秒)', type: 'number',
+                label: '流动灯效触发间隔 (毫秒)', type: 'number',
                 min: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_MIN,
                 max: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_MAX,
                 value: this.CONFIG_PARAM_CONSTANTS.ROTATE_INTERVAL_DEFAULT
             },
             fade_duration: {
-                label: '渐变灯效持续时间 (毫秒)', type: 'number',
+                label: '渐变灯效持续时长 (毫秒)', type: 'number',
                 min: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_MIN,
                 max: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_MAX,
                 value: this.CONFIG_PARAM_CONSTANTS.FADE_DURATION_DEFAULT

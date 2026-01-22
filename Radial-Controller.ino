@@ -83,7 +83,7 @@ void loop() {
 
     process_ec11_operation();
 
-    // 根据当前灯效状态执行对应的灯效
+    // 根据当前灯效状态执行对应灯效
     if (WS2812_GetBrightness() == 0) {
         WS2812_Clear();
     } else {
@@ -111,10 +111,10 @@ void update_config() {
     // 设置 WS2812 LED 亮度
     WS2812_SetBrightness(EEPROM_GetBrightness());
 
-    // 设置 LED 流动灯效的触发间隔时间
+    // 设置 LED 流动灯效触发间隔
     WS2812_SetRotateEffectInterval(EEPROM_GetRotateEffectInterval());
 
-    // 设置 LED 渐变灯效的持续时间
+    // 设置 LED 渐变灯效持续时长
     WS2812_SetFadeEffectDuration(EEPROM_GetFadeEffectDuration());
 }
 
@@ -220,7 +220,7 @@ void process_serial_data() {
 
 /**
  * @brief 处理 CDC 接收到的命令
- * @param command 接收到的命令字符串
+ * @param command 命令字符串
  */
 void process_commands(uint8_t *command) {
     if (strcmp((const uint8_t *)command, CMD_CONFIG_MODE_ENABLED) == 0) {

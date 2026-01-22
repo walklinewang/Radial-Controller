@@ -31,17 +31,17 @@
 /* 灯效模式配置 */
 #define EFFECT_MODE_DEFAULT 0 // 默认灯效模式
 
-/* 流动灯效循环周期配置 */
-#define ROTATE_INTERVAL_MIN     20 // 最小循环周期
-#define ROTATE_INTERVAL_MAX    500 // 最大循环周期
-#define ROTATE_INTERVAL_DEFAULT 40 // 默认循环周期
+/* 流动灯效触发间隔配置 */
+#define ROTATE_INTERVAL_MIN     20 // 最小触发间隔
+#define ROTATE_INTERVAL_MAX    500 // 最大触发间隔
+#define ROTATE_INTERVAL_DEFAULT 40 // 默认触发间隔
 
-/* 渐变灯效持续时间配置 */
-#define FADE_DURATION_MIN     100 // 最小持续时间
-#define FADE_DURATION_MAX     300 // 最大持续时间
-#define FADE_DURATION_DEFAULT 150 // 默认持续时间
+/* 渐变灯效持续时长配置 */
+#define FADE_DURATION_MIN     100 // 最小持续时长
+#define FADE_DURATION_MAX     300 // 最大持续时长
+#define FADE_DURATION_DEFAULT 150 // 默认持续时长
 
-/* 旋转角度配置 (度) */
+/* 旋转角度配置 */
 #define ROTATE_ANGLE_MIN     1 // 最小旋转角度
 #define ROTATE_ANGLE_MAX   360 // 最大旋转角度
 #define ROTATE_CW_DEFAULT   10 // 默认顺时针旋转角度
