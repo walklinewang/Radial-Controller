@@ -6,6 +6,11 @@
 */
 #include "MyWS2812.h"
 
+#define GRADIENT_STEPS 30 // 颜色渐变总步数（可选30、60、90等）
+#define GRADIENT_SEGMENT_RG (GRADIENT_STEPS / 3) // 红→绿渐变分段点
+#define GRADIENT_SEGMENT_GB (GRADIENT_SEGMENT_RG * 2) // 绿→蓝渐变分段点
+#define GRADIENT_STEP_SIZE (255 / GRADIENT_SEGMENT_RG) // 颜色渐变步长
+
 static const __code uint8_t BRIGHT_LEVELS[BRIGHTNESS_MAX + 1] = {0, 80, 120,
                                                                  160, 200};
 static __xdata ws2812_t ws2812;
@@ -43,9 +48,9 @@ bool WS2812_Init(uint8_t pin, uint8_t led_count,
 /**
  * @brief 设置单个 LED 的颜色
  * @param index LED 索引
- * @param r 红色分量 (0-255)
- * @param g 绿色分量 (0-255)
- * @param b 蓝色分量 (0-255)
+ * @param r 红色分量（0-255）
+ * @param g 绿色分量（0-255）
+ * @param b 蓝色分量（0-255）
  */
 void WS2812_SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
     if (index >= ws2812.led_count) {
@@ -107,9 +112,9 @@ inline void WS2812_SetPixelColor(uint8_t index, const ws2812_color_t *color) {
 
 /**
  * @brief 设置所有 LED 为同一颜色，并立即显示
- * @param r 红色分量 (0-255)
- * @param g 绿色分量 (0-255)
- * @param b 蓝色分量 (0-255)
+ * @param r 红色分量（0-255）
+ * @param g 绿色分量（0-255）
+ * @param b 蓝色分量（0-255）
  */
 void WS2812_SetAllPixels(__data uint8_t r, __data uint8_t g, __data uint8_t b) {
     for (uint8_t i = 0; i < ws2812.led_count; i++) {
@@ -173,7 +178,7 @@ void WS2812_Show() {
 }
 
 /**
- * @brief 填充 LED 流动灯效颜色
+ * @brief 填充 LED 流动灯效颜色数据
  * @param index LED 索引
  * @param offset 颜色偏移量
  */
@@ -181,21 +186,20 @@ static void WS2812_FillRotationEffectColor(__data uint8_t index,
                                            __data uint8_t offset) {
     __data uint8_t r, g, b;
 
-    // 60份分段：每个颜色渐变阶段分为20份，步长12
-    if (offset < 20) {
-        // 红 → 绿渐变 (0-19)
-        r = 255 - offset * 12;
-        g = offset * 12;
+    if (offset < GRADIENT_SEGMENT_RG) {
+        // 红 → 绿渐变
+        r = 255 - offset * GRADIENT_STEP_SIZE;
+        g = offset * GRADIENT_STEP_SIZE;
         b = 0;
-    } else if (offset < 40) {
-        // 绿 → 蓝渐变 (20-39)
-        g = 255 - (offset - 20) * 12;
-        b = (offset - 20) * 12;
+    } else if (offset < GRADIENT_SEGMENT_GB) {
+        // 绿 → 蓝渐变
+        g = 255 - (offset - GRADIENT_SEGMENT_RG) * GRADIENT_STEP_SIZE;
+        b = (offset - GRADIENT_SEGMENT_RG) * GRADIENT_STEP_SIZE;
         r = 0;
     } else {
-        // 蓝 → 红渐变 (40-59)
-        b = 255 - (offset - 40) * 12;
-        r = (offset - 40) * 12;
+        // 蓝 → 红渐变
+        b = 255 - (offset - GRADIENT_SEGMENT_GB) * GRADIENT_STEP_SIZE;
+        r = (offset - GRADIENT_SEGMENT_GB) * GRADIENT_STEP_SIZE;
         g = 0;
     }
 
@@ -209,8 +213,8 @@ static void WS2812_FillRotationEffectColor(__data uint8_t index,
 }
 
 /**
- * @brief 设置 LED 流动灯效的触发间隔时间
- * @param interval 触发间隔时间 (毫秒)
+ * @brief 设置 LED 流动灯效触发间隔
+ * @param interval 触发间隔（毫秒）
  */
 void WS2812_SetRotateEffectInterval(uint16_t interval) {
     ws2812.rotate_interval = interval;
@@ -218,7 +222,7 @@ void WS2812_SetRotateEffectInterval(uint16_t interval) {
 
 /**
  * @brief 执行 LED 流动灯效
- * @param direction 旋转方向 (EC11_DIR_CW 顺时针, EC11_DIR_CCW 逆时针)
+ * @param direction 旋转方向（EC11_DIR_CW 顺时针, EC11_DIR_CCW 逆时针）
  */
 void WS2812_ShowRotationEffect(__data ec11_direction_t direction) {
     static __data uint8_t count = 0;
@@ -232,14 +236,16 @@ void WS2812_ShowRotationEffect(__data ec11_direction_t direction) {
 
     // 如果 LED 与 EC11 编码器在电路板同侧，则需要调整计数方向为 EC11_DIR_CW
     if (direction == EC11_DIR_CCW) {
-        count = (count < 59) ? count + 1 : 0;
+        count = (count < GRADIENT_STEPS - 1) ? count + 1 : 0;
     } else {
-        count = (count > 0) ? count - 1 : 59;
+        count = (count > 0) ? count - 1 : GRADIENT_STEPS - 1;
     }
 
+    // 根据 LED 数量动态计算色相间隔，确保颜色均匀分布
     for (uint8_t index = 0; index < ws2812.led_count; index++) {
         WS2812_FillRotationEffectColor(
-            index, (count + (index * 60) / ws2812.led_count) % 60);
+            index, (count + (index * GRADIENT_STEPS) / ws2812.led_count) %
+                       GRADIENT_STEPS);
     }
 
     WS2812_Show();
@@ -265,8 +271,8 @@ void WS2812_SetFadeOutEffect() {
 }
 
 /**
- * @brief 设置 LED 渐变灯效的默认持续时间
- * @param duration 默认持续时长 (毫秒)
+ * @brief 设置 LED 渐变灯效持续时长
+ * @param duration 持续时长（毫秒）
  */
 void WS2812_SetFadeEffectDuration(uint16_t duration) {
     ws2812.fade_duration = duration;
