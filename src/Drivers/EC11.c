@@ -6,7 +6,7 @@
 */
 #include "EC11.h"
 
-static ec11_t encoder;
+static __xdata ec11_t encoder;
 
 /**
  * @brief 初始化 EC11 编码器
@@ -61,15 +61,15 @@ static ec11_direction_t EC11_ConvertDirection(ec11_direction_t direction) {
  * @brief 更新 EC11 编码器状态
  */
 void EC11_UpdateStatus() {
-    static int8_t count = 0;
+    static __data int8_t count = 0;
 
     // 初始化方向为无旋转
     encoder.direction = EC11_DIR_NONE;
 
     // 读取当前状态
-    uint8_t current_a_state = digitalRead(encoder.pin_a);
-    uint8_t current_b_state = digitalRead(encoder.pin_b);
-    uint8_t current_key_state = digitalRead(encoder.pin_key);
+    __data uint8_t current_a_state = digitalRead(encoder.pin_a);
+    __data uint8_t current_b_state = digitalRead(encoder.pin_b);
+    __data uint8_t current_key_state = digitalRead(encoder.pin_key);
 
     // 检测旋转方向（基于 A 相的变化）
     if (encoder.last_a_state != current_a_state) {
@@ -77,9 +77,9 @@ void EC11_UpdateStatus() {
     }
 
     // 根据 step_per_teeth 配置判断是否触发旋转事件
-    int8_t threshold = (encoder.step_per_teeth == STEP_PER_TEETH_1X)
-                           ? STEP_PER_TEETH_1X_THRESHOLD
-                           : STEP_PER_TEETH_2X_THRESHOLD;
+    __data int8_t threshold = (encoder.step_per_teeth == STEP_PER_TEETH_1X)
+                                  ? STEP_PER_TEETH_1X_THRESHOLD
+                                  : STEP_PER_TEETH_2X_THRESHOLD;
 
     if (count >= threshold) {
         encoder.direction = EC11_DIR_CW; // 顺时针旋转

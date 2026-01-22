@@ -6,7 +6,7 @@
 */
 #include "EEPROM.h"
 
-static eeprom_config_t config;
+static __xdata eeprom_config_t config;
 
 /**
  * @brief 获取完整的配置结构体数据指针
@@ -19,7 +19,7 @@ inline eeprom_config_t *EEPROM_GetConfigData() { return &config; }
  * @return 操作状态
  */
 eeprom_status_t EEPROM_LoadConfig() {
-    uint8_t *data = (uint8_t *)&config;
+    __xdata uint8_t *data = (__xdata uint8_t *)&config;
 
     for (uint8_t i = 0; i < CONFIG_STRUCT_SIZE; i++) {
         data[i] = eeprom_read_byte(EEPROM_CONFIG_START_ADDRESS + i);
@@ -52,7 +52,7 @@ eeprom_status_t EEPROM_SaveConfig() {
     eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 0, FIRMWARE_VERSION);
     eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + 1, FIRMWARE_REVISION);
 
-    const uint8_t *data = (const uint8_t *)&config;
+    const __xdata uint8_t *data = (const __xdata uint8_t *)&config;
 
     for (uint8_t i = 2; i < CONFIG_STRUCT_SIZE; i++) {
         eeprom_write_byte(EEPROM_CONFIG_START_ADDRESS + i, data[i]);

@@ -99,7 +99,7 @@ extern inline void WS2812_SetPixelColor(uint8_t index,
  * @param g 绿色分量 (0-255)
  * @param b 蓝色分量 (0-255)
  */
-void WS2812_SetAllPixels(uint8_t r, uint8_t g, uint8_t b);
+void WS2812_SetAllPixels(__data uint8_t r, __data uint8_t g, __data uint8_t b);
 
 /**
  * @brief 清空所有 LED（设置为熄灭状态）
@@ -121,7 +121,7 @@ void WS2812_SetRotateEffectInterval(uint16_t interval);
  * @brief 执行 LED 流动灯效
  * @param direction 旋转方向 (EC11_DIR_CW 顺时针, EC11_DIR_CCW 逆时针)
  */
-void WS2812_ShowRotationEffect(ec11_direction_t direction);
+void WS2812_ShowRotationEffect(__data ec11_direction_t direction);
 
 /**
  * @brief 设置 LED 渐亮效果

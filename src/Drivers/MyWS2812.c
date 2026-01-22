@@ -6,8 +6,9 @@
 */
 #include "MyWS2812.h"
 
-static const uint8_t BRIGHT_LEVELS[BRIGHTNESS_MAX + 1] = {0, 80, 120, 160, 200};
-static ws2812_t ws2812;
+static const __code uint8_t BRIGHT_LEVELS[BRIGHTNESS_MAX + 1] = {0, 80, 120,
+                                                                 160, 200};
+static __xdata ws2812_t ws2812;
 
 /**
  * @brief 初始化 WS2812 LED 驱动
@@ -72,7 +73,7 @@ void WS2812_SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
  * @param b 指向蓝色分量存储的指针
  */
 void WS2812_GetPixel(uint8_t index, const uint8_t *led_data, uint8_t *r,
-                            uint8_t *g, uint8_t *b) {
+                     uint8_t *g, uint8_t *b) {
     if (index >= ws2812.led_count) {
         return;
     }
@@ -110,7 +111,7 @@ inline void WS2812_SetPixelColor(uint8_t index, const ws2812_color_t *color) {
  * @param g 绿色分量 (0-255)
  * @param b 蓝色分量 (0-255)
  */
-void WS2812_SetAllPixels(uint8_t r, uint8_t g, uint8_t b) {
+void WS2812_SetAllPixels(__data uint8_t r, __data uint8_t g, __data uint8_t b) {
     for (uint8_t i = 0; i < ws2812.led_count; i++) {
         WS2812_SetPixel(i, r, g, b);
     }
@@ -176,8 +177,9 @@ void WS2812_Show() {
  * @param index LED 索引
  * @param offset 颜色偏移量
  */
-static void WS2812_FillRotationEffectColor(uint8_t index, uint8_t offset) {
-    uint8_t r, g, b;
+static void WS2812_FillRotationEffectColor(__data uint8_t index,
+                                           __data uint8_t offset) {
+    __data uint8_t r, g, b;
 
     // 60份分段：每个颜色渐变阶段分为20份，步长12
     if (offset < 20) {
@@ -198,7 +200,7 @@ static void WS2812_FillRotationEffectColor(uint8_t index, uint8_t offset) {
     }
 
     // 应用亮度调整
-    uint8_t brightness = BRIGHT_LEVELS[ws2812.brightness];
+    __data uint8_t brightness = BRIGHT_LEVELS[ws2812.brightness];
     r = (r * brightness) / 255;
     g = (g * brightness) / 255;
     b = (b * brightness) / 255;
@@ -218,9 +220,9 @@ void WS2812_SetRotateEffectInterval(uint16_t interval) {
  * @brief 执行 LED 流动灯效
  * @param direction 旋转方向 (EC11_DIR_CW 顺时针, EC11_DIR_CCW 逆时针)
  */
-void WS2812_ShowRotationEffect(ec11_direction_t direction) {
-    static uint8_t count = 0;
-    static uint32_t last_effect_time = 0;
+void WS2812_ShowRotationEffect(__data ec11_direction_t direction) {
+    static __data uint8_t count = 0;
+    static __data uint32_t last_effect_time = 0;
 
     if (millis() - last_effect_time < ws2812.rotate_interval) {
         return; // 时间间隔未到，不执行特效
@@ -278,17 +280,17 @@ void WS2812_ShowFadeEffect() {
         return;
     }
 
-    uint32_t elapsed_time = millis() - ws2812.fade_start_time;
+    __data uint32_t elapsed_time = millis() - ws2812.fade_start_time;
 
     // 计算渐变进度
-    uint16_t progress = (elapsed_time * 255) / ws2812.fade_duration;
+    __data uint16_t progress = (elapsed_time * 255) / ws2812.fade_duration;
 
     // 确保进度不超过255
     if (progress > 255) {
         progress = 255;
     }
 
-    uint8_t target_r, target_g, target_b;
+    __data uint8_t target_r, target_g, target_b;
 
     // 根据当前状态计算颜色
     if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_IN) {
@@ -298,11 +300,11 @@ void WS2812_ShowFadeEffect() {
                             &target_b);
 
             // 计算渐变颜色
-            uint8_t r = (uint8_t)((target_r * progress) >> 8);
-            uint8_t g = (uint8_t)((target_g * progress) >> 8);
-            uint8_t b = (uint8_t)((target_b * progress) >> 8);
+            target_r = (uint8_t)((target_r * progress) >> 8);
+            target_g = (uint8_t)((target_g * progress) >> 8);
+            target_b = (uint8_t)((target_b * progress) >> 8);
 
-            WS2812_SetPixel(i, r, g, b);
+            WS2812_SetPixel(i, target_r, target_g, target_b);
         }
     } else if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_OUT) {
         // 渐暗：从最后保存的颜色到 0
@@ -311,11 +313,11 @@ void WS2812_ShowFadeEffect() {
                             &target_b);
 
             // 计算渐变颜色
-            uint8_t r = (uint8_t)((target_r * (255 - progress)) >> 8);
-            uint8_t g = (uint8_t)((target_g * (255 - progress)) >> 8);
-            uint8_t b = (uint8_t)((target_b * (255 - progress)) >> 8);
+            target_r = (uint8_t)((target_r * (255 - progress)) >> 8);
+            target_g = (uint8_t)((target_g * (255 - progress)) >> 8);
+            target_b = (uint8_t)((target_b * (255 - progress)) >> 8);
 
-            WS2812_SetPixel(i, r, g, b);
+            WS2812_SetPixel(i, target_r, target_g, target_b);
         }
     }
 
