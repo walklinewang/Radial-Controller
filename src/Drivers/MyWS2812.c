@@ -292,39 +292,27 @@ void WS2812_ShowFadeEffect() {
     __data uint16_t progress = (elapsed_time * 255) / ws2812.fade_duration;
 
     // 确保进度不超过255
-    if (progress > 255) {
-        progress = 255;
-    }
+    progress = (progress > 255) ? 255 : progress;
 
     __data uint8_t target_r, target_g, target_b;
 
-    // 根据当前状态计算颜色
-    if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_IN) {
-        // 渐亮：从 0 到最后保存的颜色
-        for (uint8_t i = 0; i < ws2812.led_count; i++) {
-            WS2812_GetPixel(i, ws2812.last_led_data, &target_r, &target_g,
-                            &target_b);
+    for (uint8_t i = 0; i < ws2812.led_count; i++) {
+        WS2812_GetPixel(i, ws2812.last_led_data, &target_r, &target_g,
+                        &target_b);
 
-            // 计算渐变颜色
+        if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_IN) {
+            // 渐亮：计算从 0 到最后保存的颜色
             target_r = (uint8_t)((target_r * progress) >> 8);
             target_g = (uint8_t)((target_g * progress) >> 8);
             target_b = (uint8_t)((target_b * progress) >> 8);
-
-            WS2812_SetPixel(i, target_r, target_g, target_b);
-        }
-    } else if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_OUT) {
-        // 渐暗：从最后保存的颜色到 0
-        for (uint8_t i = 0; i < ws2812.led_count; i++) {
-            WS2812_GetPixel(i, ws2812.last_led_data, &target_r, &target_g,
-                            &target_b);
-
-            // 计算渐变颜色
+        } else if (ws2812.effect_state == WS2812_EFFECT_STATE_FADE_OUT) {
+            // 渐暗：计算从最后保存的颜色到 0
             target_r = (uint8_t)((target_r * (255 - progress)) >> 8);
             target_g = (uint8_t)((target_g * (255 - progress)) >> 8);
             target_b = (uint8_t)((target_b * (255 - progress)) >> 8);
-
-            WS2812_SetPixel(i, target_r, target_g, target_b);
         }
+
+        WS2812_SetPixel(i, target_r, target_g, target_b);
     }
 
     WS2812_Show();
